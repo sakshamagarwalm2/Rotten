@@ -170,11 +170,12 @@ export async function parseDoc(
     PptSettingsSchema.parse(settings);
   }
 
-  const buffer = await toArrayBuffer(file);
+  const arrayBuffer = await toArrayBuffer(file);
+  const buffer = Buffer.isBuffer(file) ? file : Buffer.from(arrayBuffer);
 
   const mammothImages = (mammoth as any).images;
   const { value: html } = await mammoth.convertToHtml(
-    { arrayBuffer: buffer },
+    { buffer },
     {
       convertImage: mammothImages.inline((image: any) =>
         image.read('base64').then((imageBuffer: string) => ({
