@@ -44,26 +44,26 @@ function calculateLineCount(text: string, width: number, fontSize: number): numb
     .reduce((sum, count) => sum + count, 0);
 }
 
-function calculateTextHeight(text: string, width: number, fontSize: number): number {
+function calculateTextHeight(text: string, width: number, fontSize: number, lineSpacing: number): number {
   const lineCount = calculateLineCount(text, width, fontSize);
-  return lineCount * fontSize * LINE_HEIGHT_MULTIPLIER;
+  return lineCount * fontSize * lineSpacing;
 }
 
-function calculateOptionHeights(options: string[], width: number, fontSize: number): {
+function calculateOptionHeights(options: string[], width: number, fontSize: number, lineSpacing: number): {
   totalHeight: number;
   optionHeights: number[];
 } {
-  const optionHeights = options.map((option) => calculateTextHeight(option, width, fontSize));
+  const optionHeights = options.map((option) => calculateTextHeight(option, width, fontSize, lineSpacing));
   const totalHeight = optionHeights.reduce((sum, height) => sum + height, 0);
   return { totalHeight, optionHeights };
 }
 
-function calculateAnswerHeight(answer: string | null, width: number, fontSize: number): number {
+function calculateAnswerHeight(answer: string | null, width: number, fontSize: number, lineSpacing: number): number {
   if (!answer) {
     return 0;
   }
 
-  return calculateTextHeight(answer, width, fontSize);
+  return calculateTextHeight(answer, width, fontSize, lineSpacing);
 }
 
 function calculateImagesHeight(images: string[], fontSize: number): number {
@@ -123,7 +123,7 @@ export function calculateLayout(
       return;
     }
 
-    const titleHeight = calculateTextHeight(title, settings.contentArea.width, settings.fontSize);
+    const titleHeight = calculateTextHeight(title, settings.contentArea.width, settings.headingFontSize, settings.lineSpacing);
     startNewSlideIfNeeded(titleHeight);
     addItem({
       type: 'sectionTitle',
@@ -140,9 +140,9 @@ export function calculateLayout(
       ? `${question.questionNo}. ${question.text}`
       : question.text;
 
-    const questionTextHeight = calculateTextHeight(questionText, settings.contentArea.width, settings.fontSize);
-    const optionsData = calculateOptionHeights(question.options, settings.contentArea.width, settings.fontSize);
-    const answerHeight = settings.showAnswer ? calculateAnswerHeight(question.answer, settings.contentArea.width, settings.fontSize) : 0;
+    const questionTextHeight = calculateTextHeight(questionText, settings.contentArea.width, settings.headingFontSize, settings.lineSpacing);
+    const optionsData = calculateOptionHeights(question.options, settings.contentArea.width, settings.fontSize, settings.lineSpacing);
+    const answerHeight = settings.showAnswer ? calculateAnswerHeight(question.answer, settings.contentArea.width, settings.fontSize, settings.lineSpacing) : 0;
     const imagesHeight = calculateImagesHeight(question.images, settings.fontSize);
     const questionBlockHeight = questionTextHeight + optionsData.totalHeight + answerHeight + imagesHeight;
 

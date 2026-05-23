@@ -11,6 +11,7 @@ export const PptSettingsSchema = z.object({
   lineSpacing: z.number().min(1).max(3),
   
   // Colors
+  questionNoOptionNoColor: z.string().regex(/^#([A-Fa-f0-9]{6})$/, 'Invalid HEX color'),
   questionOptionColor: z.string().regex(/^#([A-Fa-f0-9]{6})$/, 'Invalid HEX color'),
   headingColor: z.string().regex(/^#([A-Fa-f0-9]{6})$/, 'Invalid HEX color'),
   yearColor: z.string().regex(/^#([A-Fa-f0-9]{6})$/, 'Invalid HEX color'),

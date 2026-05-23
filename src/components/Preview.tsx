@@ -7,6 +7,7 @@ type PreviewProps = {
   lineSpacing: number;
   horizontalMargin: number;
   verticalMargin: number;
+  questionNoOptionNoColor: string;
   questionOptionColor: string;
   yearColor: string;
   answerColor: string;
@@ -22,6 +23,7 @@ export default function Preview({
   lineSpacing,
   horizontalMargin,
   verticalMargin,
+  questionNoOptionNoColor,
   questionOptionColor,
   yearColor,
   answerColor,
@@ -76,32 +78,34 @@ export default function Preview({
               }}
             >
                
-              {/* Year Tag */}
-              <div className="mb-4 self-end">
-                <span 
-                  className="inline-block rounded-full px-3 py-1 text-xs font-semibold text-white"
-                  style={{ backgroundColor: yearColor }}
-                >
-                  SSC CGL 2023
-                </span>
-              </div>
-
-              {/* Question */}
+              {/* Question & Year Tag Container */}
               <div className="mb-6 min-w-0">
-                <h3 
-                  className="font-semibold break-words" 
-                  style={{ 
-                    fontSize: `${headingFontSize}px`,
-                    lineHeight: lineSpacing,
-                    color: questionOptionColor
-                  }}
-                >
-                  प्रश्न 1. निम्नलिखित में से कौन सा शहर गंगा नदी के तट पर स्थित नहीं है?
-                </h3>
+                <div className="flex flex-wrap items-baseline gap-3">
+                  <h3 
+                    className="font-semibold break-words" 
+                    style={{ 
+                      fontSize: `${headingFontSize}px`,
+                      lineHeight: lineSpacing,
+                    }}
+                  >
+                    <span style={{ color: questionNoOptionNoColor }}>प्रश्न 1. </span>
+                    <span style={{ color: questionOptionColor }}>निम्नलिखित में से कौन सा शहर गंगा नदी के तट पर स्थित नहीं है?</span>
+                  </h3>
+                  <span 
+                    className="inline-block rounded-full px-3 py-1 font-semibold text-white whitespace-nowrap"
+                    style={{ 
+                      backgroundColor: yearColor,
+                      fontSize: `${headingFontSize * 0.6}px`, // Scaled relative to question size
+                      lineHeight: '1'
+                    }}
+                  >
+                    2023
+                  </span>
+                </div>
               </div>
 
               {/* Options */}
-              <div className="min-w-0" style={{ fontSize: `${fontSize}px`, color: questionOptionColor }}>
+              <div className="min-w-0" style={{ fontSize: `${fontSize}px` }}>
                 <div className="space-y-3">
                   {[
                     { label: 'कानपुर', isCorrect: false },
@@ -119,10 +123,21 @@ export default function Preview({
                           color: answerColor 
                         } : {}}
                       >
-                        <span className={`font-semibold shrink-0 ${!isCorrectAnswer ? 'text-inherit' : ''}`}>
+                        <span 
+                          className={`font-semibold shrink-0`}
+                          style={{ color: isCorrectAnswer ? 'inherit' : questionNoOptionNoColor }}
+                        >
                           {getBulletPrefix(idx)}
                         </span>
-                        <span className="break-words min-w-0" style={{ lineHeight: lineSpacing }}>{option.label}</span>
+                        <span 
+                          className="break-words min-w-0" 
+                          style={{ 
+                            lineHeight: lineSpacing,
+                            color: isCorrectAnswer ? 'inherit' : questionOptionColor
+                          }}
+                        >
+                          {option.label}
+                        </span>
                         {isCorrectAnswer && (
                           <span className="ml-auto flex items-center gap-1 text-xs font-medium shrink-0" style={{ color: answerColor }}>
                             <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

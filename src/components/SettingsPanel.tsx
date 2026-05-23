@@ -29,6 +29,7 @@ export default function SettingsPanel({ onBackgroundChange, showPreview, onToggl
   const [lineSpacing, setLineSpacing] = useState(defaultSettings.lineSpacing);
   
   // Color Settings
+  const [questionNoOptionNoColor, setQuestionNoOptionNoColor] = useState(defaultSettings.questionNoOptionNoColor);
   const [questionOptionColor, setQuestionOptionColor] = useState(defaultSettings.questionOptionColor);
   const [headingColor, setHeadingColor] = useState(defaultSettings.headingColor);
   const [yearColor, setYearColor] = useState(defaultSettings.yearColor);
@@ -37,7 +38,7 @@ export default function SettingsPanel({ onBackgroundChange, showPreview, onToggl
   // Display Options
   const [showAnswer, setShowAnswer] = useState(defaultSettings.showAnswer);
   const [showBulletPoints, setShowBulletPoints] = useState(defaultSettings.showBulletPoints);
-  const [bulletStyle, setBulletStyle] = useState<'disc' | 'circle' | 'square' | 'number' | 'none'>(defaultSettings.bulletStyle);
+  const [bulletStyle, setBulletStyle] = useState<'disc' | 'circle' | 'square' | 'number' | 'letters' | 'none'>(defaultSettings.bulletStyle);
   
   // Upload States
   const [uploadId, setUploadId] = useState<string | null>(null);
@@ -119,6 +120,7 @@ export default function SettingsPanel({ onBackgroundChange, showPreview, onToggl
       horizontalMargin,
       verticalMargin,
       lineSpacing,
+      questionNoOptionNoColor,
       questionOptionColor,
       headingColor,
       yearColor,
@@ -215,6 +217,7 @@ export default function SettingsPanel({ onBackgroundChange, showPreview, onToggl
             lineSpacing={lineSpacing}
             horizontalMargin={horizontalMargin}
             verticalMargin={verticalMargin}
+            questionNoOptionNoColor={questionNoOptionNoColor}
             questionOptionColor={questionOptionColor}
             yearColor={yearColor}
             answerColor={answerColor}
@@ -264,7 +267,7 @@ export default function SettingsPanel({ onBackgroundChange, showPreview, onToggl
           
           <div className="space-y-4">
             <FontSelector 
-              label="Heading Size" 
+              label="Question Size" 
               value={headingFontSize} 
               onChange={setHeadingFontSize}
               min={16}
@@ -339,6 +342,12 @@ export default function SettingsPanel({ onBackgroundChange, showPreview, onToggl
               label="Heading" 
               value={headingColor} 
               onChange={setHeadingColor} 
+            />
+            
+            <ColorPicker 
+              label="QuestionNo/OptionNo" 
+              value={questionNoOptionNoColor} 
+              onChange={setQuestionNoOptionNoColor} 
             />
             
             <ColorPicker 

@@ -6,6 +6,7 @@ export const defaultSettings = PptSettingsSchema.parse({
   horizontalMargin: 0.5,
   verticalMargin: 0.5,
   lineSpacing: 1.5,
+  questionNoOptionNoColor: '#111111',
   questionOptionColor: '#000000',
   headingColor: '#1a1a1a',
   yearColor: '#e02424',
