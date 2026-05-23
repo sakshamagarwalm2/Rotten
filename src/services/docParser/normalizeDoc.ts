@@ -1,4 +1,4 @@
-import type { ParsedDocument } from './parseDoc';
+import type { ParsedDocument, TableData } from './parseDoc';
 
 export interface NormalizedQuestion {
   id: number;
@@ -8,6 +8,7 @@ export interface NormalizedQuestion {
   year: string | null;
   answer: string | null;
   images: string[];
+  tables: TableData[];
 }
 
 export interface NormalizedSection {
@@ -57,6 +58,7 @@ function normalizeImages(images: string[] | undefined): string[] {
 }
 
 function normalizeQuestion(question: any): NormalizedQuestion {
+  const tables: TableData[] = Array.isArray(question.tables) ? question.tables : [];
   return {
     id: typeof question.id === 'number' ? question.id : 0,
     questionNo: normalizeQuestionNo(question.questionNo),
@@ -65,6 +67,7 @@ function normalizeQuestion(question: any): NormalizedQuestion {
     year: typeof question.year === 'string' && question.year.trim().length > 0 ? question.year.trim() : null,
     answer: typeof question.answer === 'string' && question.answer.trim().length > 0 ? normalizeText(question.answer) : null,
     images: normalizeImages(question.images),
+    tables,
   };
 }
 

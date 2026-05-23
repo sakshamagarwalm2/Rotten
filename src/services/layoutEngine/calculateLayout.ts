@@ -3,6 +3,7 @@ import type {
   NormalizedQuestion,
   NormalizedSection,
 } from '../docParser/normalizeDoc';
+import type { TableData } from '../docParser/parseDoc';
 import type { PptSettings } from '../../types/settings';
 
 export interface SlideItem {
@@ -21,7 +22,6 @@ export interface Slide {
 
 const LINE_HEIGHT_MULTIPLIER = 1.2;
 const AVERAGE_CHAR_WIDTH_RATIO = 0.55;
-const IMAGE_PLACEHOLDER_HEIGHT_RATIO = 5;
 const POINTS_PER_INCH = 72;
 const ITEM_GAP_INCHES = 0.16;
 
@@ -69,8 +69,22 @@ function calculateAnswerHeight(answer: string | null, width: number, fontSize: n
   return calculateTextHeight(answer, width, fontSize, lineSpacing);
 }
 
-function calculateImagesHeight(images: string[], fontSize: number): number {
-  return (images.length * fontSize * IMAGE_PLACEHOLDER_HEIGHT_RATIO) / POINTS_PER_INCH;
+function calculateImagesHeight(images: string[], contentWidth: number): number {
+  if (images.length === 0) return 0;
+  const maxImgWidth = Math.min(contentWidth, 6);
+  const imgHeight = maxImgWidth / 1.5;
+  return images.length * imgHeight + (images.length - 1) * 0.1;
+}
+
+const TABLE_ROW_HEIGHT = 0.4;
+
+function calculateTablesHeight(tables: TableData[] | undefined, contentWidth: number): number {
+  if (!tables || tables.length === 0) return 0;
+  let total = 0;
+  for (const table of tables) {
+    total += table.rows.length * TABLE_ROW_HEIGHT + 0.1;
+  }
+  return total;
 }
 
 function normalizeQuestionInput(question: NormalizedQuestion | null | undefined): NormalizedQuestion {
@@ -82,6 +96,7 @@ function normalizeQuestionInput(question: NormalizedQuestion | null | undefined)
     year: question?.year ?? null,
     answer: question?.answer ?? null,
     images: Array.isArray(question?.images) ? question.images : [],
+    tables: Array.isArray(question?.tables) ? question.tables : [],
   };
 }
 
@@ -126,16 +141,20 @@ export function calculateLayout(
       return;
     }
 
-    const titleHeight = calculateTextHeight(title, settings.contentArea.width, settings.headingFontSize, settings.lineSpacing);
-    startNewSlideIfNeeded(titleHeight);
+    if (currentItems.length > 0) {
+      flushSlide();
+    }
+
     addItem({
       type: 'sectionTitle',
       content: { title },
       x: settings.contentArea.left,
-      y: currentY,
+      y: contentTop,
       width: settings.contentArea.width,
-      height: titleHeight,
+      height: settings.contentArea.height,
     });
+
+    flushSlide();
   };
 
   const renderQuestion = (question: NormalizedQuestion) => {
@@ -146,11 +165,14 @@ export function calculateLayout(
     const questionTextHeight = calculateTextHeight(questionText, settings.contentArea.width, settings.headingFontSize, settings.lineSpacing);
     const optionsData = calculateOptionHeights(question.options, settings.contentArea.width, settings.fontSize, settings.lineSpacing);
     const answerHeight = settings.showAnswer ? calculateAnswerHeight(question.answer, settings.contentArea.width, settings.fontSize, settings.lineSpacing) : 0;
-    const imagesHeight = calculateImagesHeight(question.images, settings.fontSize);
-    const questionBlockHeight = questionTextHeight + optionsData.totalHeight + answerHeight + imagesHeight;
+    const imagesHeight = calculateImagesHeight(question.images, settings.contentArea.width);
+    const tablesHeight = calculateTablesHeight(question.tables, settings.contentArea.width);
+    const questionBlockHeight = questionTextHeight + optionsData.totalHeight + answerHeight + imagesHeight + tablesHeight;
     const itemHeight = Math.min(questionBlockHeight, settings.contentArea.height);
 
-    startNewSlideIfNeeded(itemHeight);
+    if (currentItems.length > 0) {
+      flushSlide();
+    }
     addItem({
       type: 'question',
       content: {
@@ -160,6 +182,7 @@ export function calculateLayout(
           optionHeights: optionsData.optionHeights,
           answerHeight,
           imagesHeight,
+          tablesHeight,
           questionBlockHeight,
         },
       },

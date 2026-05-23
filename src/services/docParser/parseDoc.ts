@@ -2,6 +2,21 @@ import mammoth from 'mammoth';
 import JSZip from 'jszip';
 import type { PptSettings } from '../../types/settings';
 import { PptSettingsSchema } from '../../types/settings';
+import { convertOmmXmlString } from './extractMath';
+
+export interface TableCell {
+  text: string;
+  colspan?: number;
+  rowspan?: number;
+}
+
+export interface TableRow {
+  cells: TableCell[];
+}
+
+export interface TableData {
+  rows: TableRow[];
+}
 
 export interface Question {
   id: number;
@@ -11,6 +26,7 @@ export interface Question {
   year?: string;
   answer?: string;
   images?: string[];
+  tables?: TableData[];
 }
 
 export interface Section {
@@ -26,6 +42,7 @@ type ParsedBlock = {
   text: string;
   html: string;
   images: string[];
+  tableData?: TableData;
 };
 
 const DEFAULT_SECTION_TITLE = 'General';
@@ -233,10 +250,18 @@ function parseRelationships(relsXml: string): Map<string, string> {
 
 function extractParagraphText(paragraphXml: string): string {
   const parts: string[] = [];
-  const tokenPattern = /<(?:w:t|m:t)(?:\s[^>]*)?>([\s\S]*?)<\/(?:w:t|m:t)>|<w:tab\s*\/>|<w:br\s*\/>/g;
+  const tokenPattern = /<m:oMath[\s\S]*?<\/m:oMath>|<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>|<w:tab\s*\/>|<w:br\s*\/>/g;
   let match: RegExpExecArray | null = null;
 
   while ((match = tokenPattern.exec(paragraphXml)) !== null) {
+    if (match[0].startsWith('<m:oMath')) {
+      const mathText = convertOmmXmlString(match[0]);
+      if (mathText) {
+        parts.push(mathText);
+      }
+      continue;
+    }
+
     if (typeof match[1] === 'string') {
       parts.push(decodeHtmlEntities(match[1]));
       continue;
@@ -286,6 +311,46 @@ function extractTableText(tableXml: string): string {
     .join('\n');
 }
 
+function getXmlAttr(tag: string, attr: string): string | null {
+  const esc = attr.replace(':', '\\:');
+  const m = tag.match(new RegExp(`\\b${esc}=["']([^"']+)["']`));
+  return m?.[1] ?? null;
+}
+
+function parseTableXml(tableXml: string): TableData {
+  const rows: TableRow[] = [];
+  const rowMatches = tableXml.match(/<w:tr\b[\s\S]*?<\/w:tr>/g) ?? [];
+
+  for (const rowXml of rowMatches) {
+    const cells: TableCell[] = [];
+    const cellMatches = rowXml.match(/<w:tc\b[\s\S]*?<\/w:tc>/g) ?? [];
+
+    for (const cellXml of cellMatches) {
+      const tcPr = cellXml.match(/<w:tcPr[\s\S]*?<\/w:tcPr>/)?.[0] ?? '';
+      let colspan = 1;
+      let rowspan = 1;
+
+      const gridSpanMatch = tcPr.match(/<w:gridSpan\s+[^>]*w:val=["'](\d+)["']/);
+      if (gridSpanMatch) colspan = parseInt(gridSpanMatch[1], 10) || 1;
+
+      const vMergeMatch = tcPr.match(/<w:vMerge\s+[^>]*w:val=["'](\w+)["']/);
+      if (vMergeMatch && vMergeMatch[1] === 'restart') rowspan = 2;
+
+      const cellParagraphs = cellXml.match(/<w:p\b[\s\S]*?<\/w:p>/g) ?? [];
+      const cellText = cellParagraphs
+        .map((p) => extractParagraphText(p))
+        .filter(Boolean)
+        .join('\n');
+
+      cells.push({ text: cellText, colspan, rowspan });
+    }
+
+    rows.push({ cells });
+  }
+
+  return { rows };
+}
+
 async function extractDocxBlocksFromXml(buffer: Buffer): Promise<ParsedBlock[]> {
   const zip = await JSZip.loadAsync(buffer);
   const documentXmlFile = zip.file('word/document.xml');
@@ -333,8 +398,13 @@ async function extractDocxBlocksFromXml(buffer: Buffer): Promise<ParsedBlock[]> 
       }
     }
 
-    if (text || images.length > 0) {
-      blocks.push({ text, html: blockXml, images });
+    let tableData: TableData | undefined;
+    if (blockXml.startsWith('<w:tbl')) {
+      tableData = parseTableXml(blockXml);
+    }
+
+    if (text || images.length > 0 || tableData) {
+      blocks.push({ text, html: blockXml, images, tableData });
     }
   }
 
@@ -536,6 +606,14 @@ export async function parseDoc(
 
     for (const src of entry.images) {
       addOrAttachImage(src);
+    }
+
+    if (entry.html.startsWith('<w:tbl') && currentQuestion) {
+      const tbl = parseTableXml(entry.html);
+      if (tbl.rows.length > 0) {
+        if (!currentQuestion.tables) currentQuestion.tables = [];
+        currentQuestion.tables.push(tbl);
+      }
     }
 
     if (!entry.text) {

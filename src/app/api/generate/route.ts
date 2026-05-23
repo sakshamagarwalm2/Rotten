@@ -2,13 +2,14 @@ import { NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { z } from 'zod';
-import mammoth from 'mammoth';
+import JSZip from 'jszip';
 import { PptSettingsSchema, type PptSettings } from '../../../types/settings';
 import { parseDoc } from '../../../services/docParser/parseDoc';
 import { normalizeDoc } from '../../../services/docParser/normalizeDoc';
 import { calculateLayout } from '../../../services/layoutEngine/calculateLayout';
 import { generatePpt } from '../../../services/pptGenerator/generatePpt';
 import { analyzeWithGroq, type AiDocument } from '../../../services/aiAnalyzer/slideAnalyzer';
+import { convertOmmXmlString } from '../../../services/docParser/extractMath';
 import { logger } from '../../../utils/logger';
 
 const UPLOAD_BASE_DIR = path.join(process.cwd(), 'tmp', 'uploads');
@@ -42,22 +43,46 @@ function convertAiDocToParsedDoc(aiDoc: AiDocument): import('../../../services/d
 
 async function extractRawTextFromDocx(buffer: Buffer): Promise<string> {
   try {
-    const { value: html } = await mammoth.convertToHtml({ buffer });
-    const text = html
-      .replace(/<br\s*\/?>/gi, '\n')
-      .replace(/<\/p>/gi, '\n')
-      .replace(/<\/div>/gi, '\n')
-      .replace(/<\/li>/gi, '\n')
-      .replace(/<[^>]+>/g, '')
-      .replace(/&nbsp;/gi, ' ')
-      .replace(/&amp;/gi, '&')
-      .replace(/&lt;/gi, '<')
-      .replace(/&gt;/gi, '>')
-      .replace(/&quot;/gi, '"')
-      .replace(/&#39;/gi, "'")
-      .replace(/\n{3,}/g, '\n\n')
-      .trim();
-    return text;
+    const zip = await JSZip.loadAsync(buffer);
+    const docXmlFile = zip.file('word/document.xml');
+    if (!docXmlFile) return '';
+
+    const xmlContent = await docXmlFile.async('string');
+    const bodyMatch = xmlContent.match(/<w:body[\s\S]*?<\/w:body>/);
+    if (!bodyMatch) return '';
+
+    const paragraphs = bodyMatch[0].match(/<w:p[\s\S]*?<\/w:p>/g) ?? [];
+    const parts: string[] = [];
+
+    for (const paraXml of paragraphs) {
+      const mathBlocks: string[] = [];
+      const mathRegex = /<m:oMath[\s\S]*?<\/m:oMath>/g;
+      let m: RegExpExecArray | null = null;
+      while ((m = mathRegex.exec(paraXml)) !== null) {
+        mathBlocks.push(m[0]);
+      }
+
+      const textParts: string[] = [];
+      const textRegex = /<w:t[^>]*>([\s\S]*?)<\/w:t>/g;
+      while ((m = textRegex.exec(paraXml)) !== null) {
+        textParts.push(m[1]);
+      }
+
+      const line = textParts.join('').replace(/&[a-z]+;/g, c => {
+        const entities: Record<string, string> = {
+          '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&apos;': "'",
+          '&nbsp;': ' ',
+        };
+        return entities[c] || c;
+      }).trim();
+
+      const mathLine = mathBlocks.map(b => convertOmmXmlString(b)).filter(Boolean).join(' ');
+
+      const combined = [line, mathLine].filter(Boolean).join(' ');
+      if (combined) parts.push(combined);
+    }
+
+    return parts.join('\n');
   } catch (error: any) {
     logger.error('[extractRawText] Failed to extract raw text:', error.message);
     return '';
