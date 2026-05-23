@@ -1,0 +1,18 @@
+Icon Instructions
+=================
+
+To add a custom icon for your Windows application:
+
+1. Create or obtain a PNG image (recommended size: 512x512 pixels or larger)
+2. Name it "icon.png"
+3. Place it in this "public" folder
+4. Rebuild the Electron app with: npm run electron:build:win
+
+The icon will be used for:
+- Application window
+- Taskbar
+- Desktop shortcut
+- Start menu shortcut
+- Installer
+
+If no icon.png is provided, Electron will use the default icon.

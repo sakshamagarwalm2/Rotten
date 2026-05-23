@@ -6,21 +6,46 @@ type FontSelectorProps = {
   label: string;
   value: number;
   onChange: (value: number) => void;
+  min?: number;
+  max?: number;
 };
 
-export default function FontSelector({ label, value, onChange }: FontSelectorProps) {
+export default function FontSelector({ label, value, onChange, min = 12, max = 48 }: FontSelectorProps) {
+  const generateOptions = () => {
+    const options = [];
+    const step = 4;
+    for (let size = min; size <= max; size += step) {
+      options.push(size);
+    }
+    if (!options.includes(max)) {
+      options.push(max);
+    }
+    return options;
+  };
+
+  const options = generateOptions();
+
+  const getSizeLabel = (size: number) => {
+    if (size <= 16) return 'Small';
+    if (size <= 24) return 'Medium';
+    if (size <= 32) return 'Large';
+    if (size <= 40) return 'Extra Large';
+    return 'Huge';
+  };
+
   return (
-    <div className="flex flex-col gap-2">
-      <span className="text-sm font-medium text-gray-700">{label}</span>
+    <div>
+      <label className="mb-2 block text-sm font-medium text-[#374151]">{label}</label>
       <select
         value={value}
         onChange={(event) => onChange(Number(event.target.value))}
-        className="w-full appearance-none rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 shadow-sm outline-none transition-shadow focus:border-gray-300 focus:shadow-md cursor-pointer"
+        className="w-full appearance-none rounded-lg border border-[#e5e7eb] bg-white px-3 py-2 text-sm text-[#111111] transition-colors hover:border-[#111111] focus:border-[#111111] focus:outline-none focus:ring-1 focus:ring-[#111111]"
       >
-        <option value="16">16pt (Small)</option>
-        <option value="24">24pt (Medium)</option>
-        <option value="32">32pt (Large)</option>
-        <option value="40">40pt (Extra Large)</option>
+        {options.map((size) => (
+          <option key={size} value={size}>
+            {size}pt — {getSizeLabel(size)}
+          </option>
+        ))}
       </select>
     </div>
   );

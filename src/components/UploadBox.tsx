@@ -22,8 +22,8 @@ export default function UploadBox({ label, accept, file, onFileChange }: UploadB
   };
 
   return (
-    <div className="flex flex-col gap-2">
-      <span className="text-sm font-medium text-gray-700">{label}</span>
+    <div>
+      <label className="mb-2 block text-sm font-medium text-[#374151]">{label}</label>
       <div
         role="button"
         tabIndex={0}
@@ -33,7 +33,7 @@ export default function UploadBox({ label, accept, file, onFileChange }: UploadB
             handleClick();
           }
         }}
-        className="flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 py-6 transition-colors hover:bg-gray-100 focus:outline-none"
+        className="flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-[#e5e7eb] bg-white py-8 transition-colors hover:border-[#111111] hover:bg-[#f8f9fa] focus:outline-none focus:ring-2 focus:ring-[#111111] focus:ring-offset-2"
       >
         <input
           ref={inputRef}
@@ -44,11 +44,19 @@ export default function UploadBox({ label, accept, file, onFileChange }: UploadB
         />
         {file ? (
           <div className="text-center">
-            <p className="text-sm font-medium text-gray-900">{file.name}</p>
-            <p className="text-xs text-gray-500">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+            <svg className="mx-auto mb-2 h-8 w-8 text-[#10b981]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p className="text-sm font-medium text-[#111111]">{file.name}</p>
+            <p className="mt-1 text-xs text-[#6b7280]">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
           </div>
         ) : (
-          <span className="text-sm text-gray-500">Click to select a file</span>
+          <div className="text-center">
+            <svg className="mx-auto mb-2 h-8 w-8 text-[#6b7280]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+            </svg>
+            <p className="text-sm text-[#6b7280]">Click to upload</p>
+          </div>
         )}
       </div>
     </div>
