@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import SettingsPanel from '../components/SettingsPanel';
-import Preview from '../components/Preview';
 
 export default function HomePage() {
   const [showPreview, setShowPreview] = useState(true);
@@ -30,14 +29,12 @@ export default function HomePage() {
 
       {/* Main Content */}
       <div className="mx-auto max-w-[1200px] px-6 py-12">
-        <div className={`flex gap-6 ${showPreview ? 'flex-col lg:flex-row' : 'flex-col'}`}>
-          <SettingsPanel 
-            onBackgroundChange={setBackgroundImage}
-            showPreview={showPreview}
-            onTogglePreview={() => setShowPreview(!showPreview)}
-          />
-          {showPreview && <Preview backgroundImage={backgroundImage} />}
-        </div>
+        <SettingsPanel 
+          onBackgroundChange={setBackgroundImage}
+          showPreview={showPreview}
+          onTogglePreview={() => setShowPreview(!showPreview)}
+          backgroundImage={backgroundImage}
+        />
       </div>
 
       {/* Footer */}

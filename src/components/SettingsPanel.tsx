@@ -4,15 +4,17 @@ import React, { useState, useEffect } from 'react';
 import UploadBox from './UploadBox';
 import ColorPicker from './ColorPicker';
 import FontSelector from './FontSelector';
+import Preview from './Preview';
 import { defaultSettings } from '../constants/defaultSettings';
 
 type SettingsPanelProps = {
   onBackgroundChange: (imageUrl: string | null) => void;
   showPreview: boolean;
   onTogglePreview: () => void;
+  backgroundImage: string | null;
 };
 
-export default function SettingsPanel({ onBackgroundChange, showPreview, onTogglePreview }: SettingsPanelProps) {
+export default function SettingsPanel({ onBackgroundChange, showPreview, onTogglePreview, backgroundImage }: SettingsPanelProps) {
   // File States
   const [docxFile, setDocxFile] = useState<File | null>(null);
   const [backgroundFile, setBackgroundFile] = useState<File | null>(null);
@@ -22,7 +24,8 @@ export default function SettingsPanel({ onBackgroundChange, showPreview, onToggl
   const [headingFontSize, setHeadingFontSize] = useState(defaultSettings.headingFontSize);
   
   // Spacing Settings
-  const [questionGap, setQuestionGap] = useState(defaultSettings.questionGap);
+  const [horizontalMargin, setHorizontalMargin] = useState(defaultSettings.horizontalMargin);
+  const [verticalMargin, setVerticalMargin] = useState(defaultSettings.verticalMargin);
   const [lineSpacing, setLineSpacing] = useState(defaultSettings.lineSpacing);
   
   // Color Settings
@@ -113,7 +116,8 @@ export default function SettingsPanel({ onBackgroundChange, showPreview, onToggl
     const settings = {
       fontSize,
       headingFontSize,
-      questionGap,
+      horizontalMargin,
+      verticalMargin,
       lineSpacing,
       questionOptionColor,
       headingColor,
@@ -123,10 +127,10 @@ export default function SettingsPanel({ onBackgroundChange, showPreview, onToggl
       showBulletPoints,
       bulletStyle,
       contentArea: {
-        top: 0,
-        left: 0,
-        width: 10,
-        height: 5,
+        top: verticalMargin,
+        left: horizontalMargin,
+        width: 13.33 - (horizontalMargin * 2),
+        height: 7.5 - (verticalMargin * 2),
       },
     };
 
@@ -164,9 +168,7 @@ export default function SettingsPanel({ onBackgroundChange, showPreview, onToggl
   };
 
   return (
-    <div className={`flex flex-col transition-all duration-300 ${
-      showPreview ? 'w-full lg:w-[400px]' : 'w-full'
-    }`}>
+    <div className="flex w-full flex-col transition-all duration-300">
       
       {/* Header */}
       <div className="mb-8 flex items-start justify-between">
@@ -203,14 +205,34 @@ export default function SettingsPanel({ onBackgroundChange, showPreview, onToggl
         </button>
       </div>
 
-      {/* Content Grid */}
-      <div className={`grid gap-6 ${showPreview ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'}`}>
+      {/* Preview — sits at top of dashboard area below header */}
+      {showPreview && (
+        <div className="mb-6">
+          <Preview 
+            backgroundImage={backgroundImage} 
+            fontSize={fontSize}
+            headingFontSize={headingFontSize}
+            lineSpacing={lineSpacing}
+            horizontalMargin={horizontalMargin}
+            verticalMargin={verticalMargin}
+            questionOptionColor={questionOptionColor}
+            yearColor={yearColor}
+            answerColor={answerColor}
+            showAnswer={showAnswer}
+            showBulletPoints={showBulletPoints}
+            bulletStyle={bulletStyle}
+          />
+        </div>
+      )}
+
+      {/* Form Controls — multi-column grid */}
+      <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
         
         {/* File Upload Section */}
-        <div className={`rounded-xl border border-[#e5e7eb] bg-[#f5f5f5] p-6 ${showPreview ? '' : 'md:col-span-2 lg:col-span-3'}`}>
+        <div className="rounded-xl border border-[#e5e7eb] bg-[#f5f5f5] p-6 md:col-span-2 lg:col-span-3">
           <h2 className="mb-4 text-lg font-semibold text-[#111111]">Files</h2>
           
-          <div className={`grid gap-4 ${showPreview ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'}`}>
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
             <UploadBox
               label="DOCX Document"
               accept=".docx"
@@ -265,16 +287,31 @@ export default function SettingsPanel({ onBackgroundChange, showPreview, onToggl
           
           <div className="space-y-4">
             <div>
-              <label className="mb-2 block text-sm font-medium text-[#374151]">Question Gap</label>
+              <label className="mb-2 block text-sm font-medium text-[#374151]">Horizontal Margin</label>
               <input
                 type="range"
                 className="w-full accent-[#111111]"
-                min="5"
-                max="50"
-                value={questionGap}
-                onChange={(e) => setQuestionGap(Number(e.target.value))}
+                min="0"
+                max="4"
+                step="0.1"
+                value={horizontalMargin}
+                onChange={(e) => setHorizontalMargin(Number(e.target.value))}
               />
-              <span className="mt-1 block text-sm text-[#6b7280]">{questionGap}pt</span>
+              <span className="mt-1 block text-sm text-[#6b7280]">{horizontalMargin.toFixed(1)} in</span>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-[#374151]">Vertical Margin</label>
+              <input
+                type="range"
+                className="w-full accent-[#111111]"
+                min="0"
+                max="3"
+                step="0.1"
+                value={verticalMargin}
+                onChange={(e) => setVerticalMargin(Number(e.target.value))}
+              />
+              <span className="mt-1 block text-sm text-[#6b7280]">{verticalMargin.toFixed(1)} in</span>
             </div>
 
             <div>
@@ -325,7 +362,7 @@ export default function SettingsPanel({ onBackgroundChange, showPreview, onToggl
         </div>
 
         {/* Display Options */}
-        <div className={`rounded-xl border border-[#e5e7eb] bg-white p-6 ${showPreview ? '' : 'md:col-span-2 lg:col-span-3'}`}>
+        <div className="rounded-xl border border-[#e5e7eb] bg-white p-6 md:col-span-2 lg:col-span-3">
           <h2 className="mb-4 text-lg font-semibold text-[#111111]">Display Options</h2>
           
           <div className="space-y-4">
@@ -361,6 +398,7 @@ export default function SettingsPanel({ onBackgroundChange, showPreview, onToggl
                   <option value="circle">○ Circle</option>
                   <option value="square">■ Square</option>
                   <option value="number">1. Numbers</option>
+                  <option value="letters">A. Letters</option>
                   <option value="none">None</option>
                 </select>
               </div>
@@ -370,7 +408,7 @@ export default function SettingsPanel({ onBackgroundChange, showPreview, onToggl
 
         {/* Status Messages */}
         {(statusMessage || errorMessage) && (
-          <div className={`${showPreview ? '' : 'md:col-span-2 lg:col-span-3'}`}>
+          <div className="md:col-span-2 lg:col-span-3">
             {statusMessage && (
               <div className="flex items-center gap-3 rounded-lg border border-[#10b981] bg-[#f0fdf4] px-4 py-3 text-sm text-[#10b981]">
                 <svg className="h-5 w-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">

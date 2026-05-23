@@ -193,12 +193,13 @@ export async function generatePpt(
 
         if (exists) {
           console.log(`[generatePpt] Slide ${index + 1} - Background file EXISTS, proceeding with addImage`);
-          const imgOptions = {
+          const imgOptions: any = {
             path: bgPath,
             x: 0,
             y: 0,
             w: 13.33,
             h: 7.5,
+            sizing: { type: 'cover', w: 13.33, h: 7.5 },
           };
           console.log(`[generatePpt] Slide ${index + 1} - addImage options:`, JSON.stringify(imgOptions, null, 2));
           try {

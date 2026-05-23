@@ -6,7 +6,8 @@ export const PptSettingsSchema = z.object({
   headingFontSize: z.number().int().min(16).max(60),
   
   // Spacing
-  questionGap: z.number().int().min(5).max(50),
+  horizontalMargin: z.number().min(0).max(4),
+  verticalMargin: z.number().min(0).max(3),
   lineSpacing: z.number().min(1).max(3),
   
   // Colors
@@ -18,7 +19,7 @@ export const PptSettingsSchema = z.object({
   // Display Options
   showAnswer: z.boolean(),
   showBulletPoints: z.boolean(),
-  bulletStyle: z.enum(['disc', 'circle', 'square', 'number', 'none']),
+  bulletStyle: z.enum(['disc', 'circle', 'square', 'number', 'letters', 'none']),
   
   // Layout
   contentArea: z.object({

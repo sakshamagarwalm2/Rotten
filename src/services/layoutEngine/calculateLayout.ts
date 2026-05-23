@@ -115,7 +115,7 @@ export function calculateLayout(
 
   const addItem = (item: SlideItem) => {
     currentItems.push(item);
-    currentY += item.height + settings.questionGap;
+    currentY += item.height + 20; // Fixed gap since setting was removed
   };
 
   const renderSectionTitle = (title: string) => {

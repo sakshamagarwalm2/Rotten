@@ -3,7 +3,8 @@ import { PptSettingsSchema } from '../types/settings';
 export const defaultSettings = PptSettingsSchema.parse({
   fontSize: 20,
   headingFontSize: 32,
-  questionGap: 15,
+  horizontalMargin: 0.5,
+  verticalMargin: 0.5,
   lineSpacing: 1.5,
   questionOptionColor: '#000000',
   headingColor: '#1a1a1a',
