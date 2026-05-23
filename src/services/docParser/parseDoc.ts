@@ -1,4 +1,5 @@
 import mammoth from 'mammoth';
+import JSZip from 'jszip';
 import type { PptSettings } from '../../types/settings';
 import { PptSettingsSchema } from '../../types/settings';
 
@@ -21,25 +22,52 @@ export interface ParsedDocument {
   sections: Section[];
 }
 
-const DEFAULT_SECTION_TITLE = 'General';
+type ParsedBlock = {
+  text: string;
+  html: string;
+  images: string[];
+};
 
-const questionPattern = /^(?:प्रश्न\s*)?(\d{1,3})([.)]|\s+)\s*(.*)$/i;
-const optionPattern = /^([a-dA-D])\s*[.)]\s*(.*)$/;
-const answerPattern = /उत्तर\s*[:\-–]?\s*(.+)$/i;
+const DEFAULT_SECTION_TITLE = 'General';
+const HINDI_QUESTION = '\u092a\u094d\u0930\u0936\u094d\u0928';
+const HINDI_ANSWER = '\u0909\u0924\u094d\u0924\u0930';
+
+const questionPattern = new RegExp(
+  `^(?:(?:${HINDI_QUESTION}|Q(?:uestion)?)\\s*)?(\\d{1,3})([.)])\\s+(.+)$`,
+  'i',
+);
+const optionPattern = /^(?:\(([a-d])\)|([a-d])[.)])\s*(.*)$/;
+const answerPattern = new RegExp(
+  `^(?:${HINDI_ANSWER}|answer|ans)\\s*[:\\-\\u2013\\u2014]?\\s*(.+)$`,
+  'i',
+);
 const yearPattern = /\[(\d{4})\]/;
 const headingKeywords = [
   'SECTION',
-  'खंड',
-  'भाग',
-  'विषय',
-  'प्रश्न पत्र',
+  '\u0916\u0902\u0921',
+  '\u092d\u093e\u0917',
+  '\u0935\u093f\u0937\u092f',
+  '\u092a\u094d\u0930\u0936\u094d\u0928 \u092a\u0924\u094d\u0930',
   'SET',
   'PART',
-  'सत्र',
-  'समूह',
-  'पेपर',
-  'अध्याय',
+  '\u0938\u0924\u094d\u0930',
+  '\u0938\u092e\u0942\u0939',
+  '\u092a\u0947\u092a\u0930',
+  '\u0905\u0927\u094d\u092f\u093e\u092f',
 ];
+
+function decodeHtmlEntities(html: string): string {
+  return html
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/&apos;/gi, "'")
+    .replace(/&#x([0-9a-f]+);/gi, (_, hex: string) => String.fromCodePoint(parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_, code: string) => String.fromCodePoint(parseInt(code, 10)));
+}
 
 function normalizeHtmlToText(html: string): string {
   const withLineBreaks = html
@@ -57,16 +85,6 @@ function normalizeHtmlToText(html: string): string {
   return decodeHtmlEntities(withLineBreaks).replace(/\n{2,}/g, '\n');
 }
 
-function decodeHtmlEntities(html: string): string {
-  return html
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>')
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;/gi, "'");
-}
-
 function extractBlockText(html: string): string {
   return normalizeHtmlToText(html).trim();
 }
@@ -81,9 +99,9 @@ function isHeadingLine(line: string, blockHtml: string): boolean {
     return true;
   }
 
-  const containsBold = /<strong>|<b>/i.test(blockHtml);
+  const containsBold = /<strong>|<b\b|<w:b\b/i.test(blockHtml);
   const isShort = trimmed.length <= 120 && trimmed.split(/\s+/).length <= 10;
-  const notMetadata = !optionPattern.test(trimmed) && !answerPattern.test(trimmed) && !questionPattern.test(trimmed);
+  const notMetadata = !parseOptionLine(trimmed) && !answerPattern.test(trimmed) && !questionPattern.test(trimmed);
 
   return containsBold && isShort && notMetadata;
 }
@@ -113,20 +131,8 @@ function splitTextIntoLines(text: string): string[] {
     .filter((line) => line.length > 0);
 }
 
-function extractImageSources(html: string): string[] {
-  const sources: string[] = [];
-  const imageRegex = /<img[^>]*src=["']([^"']+)["'][^>]*>/gi;
-  let match: RegExpExecArray | null = null;
-
-  while ((match = imageRegex.exec(html)) !== null) {
-    sources.push(match[1]);
-  }
-
-  return sources;
-}
-
-function extractBlocks(html: string): Array<{ text: string; html: string; images: string[] }> {
-  const blocks: Array<{ text: string; html: string; images: string[] }> = [];
+function extractBlocks(html: string): ParsedBlock[] {
+  const blocks: ParsedBlock[] = [];
   const imageTagRegex = /<img[^>]*src=["']([^"']+)["'][^>]*>/gi;
   let lastIndex = 0;
   let match: RegExpExecArray | null = null;
@@ -162,16 +168,188 @@ function extractBlocks(html: string): Array<{ text: string; html: string; images
   return blocks;
 }
 
-export async function parseDoc(
-  file: File | Blob | ArrayBuffer | Uint8Array,
-  settings?: PptSettings,
-): Promise<ParsedDocument> {
-  if (settings) {
-    PptSettingsSchema.parse(settings);
+function extractXmlAttribute(tag: string, attributeName: string): string | null {
+  const escapedName = attributeName.replace(':', '\\:');
+  const match = tag.match(new RegExp(`\\b${escapedName}=["']([^"']+)["']`));
+  return match?.[1] ?? null;
+}
+
+function mimeTypeFromPath(filePath: string): string {
+  const lowerPath = filePath.toLowerCase();
+  if (lowerPath.endsWith('.jpg') || lowerPath.endsWith('.jpeg')) {
+    return 'image/jpeg';
+  }
+  if (lowerPath.endsWith('.gif')) {
+    return 'image/gif';
+  }
+  if (lowerPath.endsWith('.webp')) {
+    return 'image/webp';
+  }
+  if (lowerPath.endsWith('.svg')) {
+    return 'image/svg+xml';
+  }
+  return 'image/png';
+}
+
+function normalizeZipPath(target: string): string {
+  const normalizedTarget = target.replace(/\\/g, '/');
+  const parts = normalizedTarget.startsWith('/')
+    ? normalizedTarget.slice(1).split('/')
+    : ['word', ...normalizedTarget.split('/')];
+  const stack: string[] = [];
+
+  for (const part of parts) {
+    if (!part || part === '.') {
+      continue;
+    }
+    if (part === '..') {
+      stack.pop();
+      continue;
+    }
+    stack.push(part);
   }
 
-  const arrayBuffer = await toArrayBuffer(file);
-  const buffer = Buffer.isBuffer(file) ? file : Buffer.from(arrayBuffer);
+  return stack.join('/');
+}
+
+function parseRelationships(relsXml: string): Map<string, string> {
+  const relationships = new Map<string, string>();
+  const relPattern = /<Relationship\b[^>]*>/g;
+  let match: RegExpExecArray | null = null;
+
+  while ((match = relPattern.exec(relsXml)) !== null) {
+    const tag = match[0];
+    const id = extractXmlAttribute(tag, 'Id');
+    const target = extractXmlAttribute(tag, 'Target');
+    const type = extractXmlAttribute(tag, 'Type') ?? '';
+
+    if (id && target && type.includes('/image')) {
+      relationships.set(id, target);
+    }
+  }
+
+  return relationships;
+}
+
+function extractParagraphText(paragraphXml: string): string {
+  const parts: string[] = [];
+  const tokenPattern = /<(?:w:t|m:t)(?:\s[^>]*)?>([\s\S]*?)<\/(?:w:t|m:t)>|<w:tab\s*\/>|<w:br\s*\/>/g;
+  let match: RegExpExecArray | null = null;
+
+  while ((match = tokenPattern.exec(paragraphXml)) !== null) {
+    if (typeof match[1] === 'string') {
+      parts.push(decodeHtmlEntities(match[1]));
+      continue;
+    }
+
+    parts.push(' ');
+  }
+
+  return parts.join('').replace(/[ \t]+/g, ' ').trim();
+}
+
+function extractImageRelationshipIds(paragraphXml: string): string[] {
+  const ids: string[] = [];
+  const blipPattern = /<a:blip\b[^>]*(?:r:embed|r:link)=["']([^"']+)["'][^>]*>/g;
+  const imageDataPattern = /<v:imagedata\b[^>]*r:id=["']([^"']+)["'][^>]*>/g;
+  let match: RegExpExecArray | null = null;
+
+  while ((match = blipPattern.exec(paragraphXml)) !== null) {
+    ids.push(match[1]);
+  }
+
+  while ((match = imageDataPattern.exec(paragraphXml)) !== null) {
+    ids.push(match[1]);
+  }
+
+  return ids;
+}
+
+function extractTableText(tableXml: string): string {
+  const rows = tableXml.match(/<w:tr\b[\s\S]*?<\/w:tr>/g) ?? [];
+
+  return rows
+    .map((rowXml) => {
+      const cells = rowXml.match(/<w:tc\b[\s\S]*?<\/w:tc>/g) ?? [];
+      return cells
+        .map((cellXml) => {
+          const cellParagraphs = cellXml.match(/<w:p\b[\s\S]*?<\/w:p>/g) ?? [];
+          return cellParagraphs
+            .map(extractParagraphText)
+            .filter(Boolean)
+            .join(' ');
+        })
+        .filter(Boolean)
+        .join(' | ');
+    })
+    .filter(Boolean)
+    .join('\n');
+}
+
+async function extractDocxBlocksFromXml(buffer: Buffer): Promise<ParsedBlock[]> {
+  const zip = await JSZip.loadAsync(buffer);
+  const documentXmlFile = zip.file('word/document.xml');
+
+  if (!documentXmlFile) {
+    return [];
+  }
+
+  const [documentXml, relsXml] = await Promise.all([
+    documentXmlFile.async('string'),
+    zip.file('word/_rels/document.xml.rels')?.async('string') ?? Promise.resolve(''),
+  ]);
+  const relationships = parseRelationships(relsXml);
+  const imageCache = new Map<string, string>();
+  const bodyXml = documentXml.match(/<w:body\b[\s\S]*?<\/w:body>/)?.[0] ?? documentXml;
+  const documentBlocks = bodyXml.match(/<w:p\b[\s\S]*?<\/w:p>|<w:tbl\b[\s\S]*?<\/w:tbl>/g) ?? [];
+  const blocks: ParsedBlock[] = [];
+
+  for (const blockXml of documentBlocks) {
+    const text = blockXml.startsWith('<w:tbl')
+      ? extractTableText(blockXml)
+      : extractParagraphText(blockXml);
+    const images: string[] = [];
+
+    for (const relationshipId of extractImageRelationshipIds(blockXml)) {
+      const target = relationships.get(relationshipId);
+      if (!target) {
+        continue;
+      }
+
+      const mediaPath = normalizeZipPath(target);
+      if (!imageCache.has(mediaPath)) {
+        const imageFile = zip.file(mediaPath);
+        if (!imageFile) {
+          continue;
+        }
+
+        const imageBase64 = await imageFile.async('base64');
+        imageCache.set(mediaPath, `data:${mimeTypeFromPath(mediaPath)};base64,${imageBase64}`);
+      }
+
+      const image = imageCache.get(mediaPath);
+      if (image) {
+        images.push(image);
+      }
+    }
+
+    if (text || images.length > 0) {
+      blocks.push({ text, html: blockXml, images });
+    }
+  }
+
+  return blocks;
+}
+
+async function extractDocxBlocks(buffer: Buffer): Promise<ParsedBlock[]> {
+  try {
+    const xmlBlocks = await extractDocxBlocksFromXml(buffer);
+    if (xmlBlocks.length > 0) {
+      return xmlBlocks;
+    }
+  } catch {
+    // Fall back to Mammoth for non-standard DOCX packages.
+  }
 
   const mammothImages = (mammoth as any).images;
   const { value: html } = await mammoth.convertToHtml(
@@ -185,7 +363,87 @@ export async function parseDoc(
     },
   );
 
-  const blocks = extractBlocks(html);
+  return extractBlocks(html);
+}
+
+function parseOptionLine(line: string): { label: string; text: string } | null {
+  const match = line.match(optionPattern);
+  if (!match) {
+    return null;
+  }
+
+  return {
+    label: (match[1] ?? match[2] ?? '').toLowerCase(),
+    text: (match[3] ?? '').trim(),
+  };
+}
+
+function cleanAnswer(answer: string): string {
+  return answer
+    .trim()
+    .replace(/^[(:\-\u2013\u2014\s]+/, '')
+    .replace(/[)\]\s]+$/, '')
+    .replace(/^\(([a-d0-9]+)\)$/i, '$1')
+    .trim();
+}
+
+function formatOption(label: string, text: string): string {
+  return text ? `(${label}) ${text}` : `(${label})`;
+}
+
+function removeYearTag(text: string): { text: string; year: string | undefined } {
+  const yearMatch = text.match(yearPattern);
+  if (!yearMatch) {
+    return { text, year: undefined };
+  }
+
+  return {
+    text: text.replace(yearPattern, '').trim(),
+    year: yearMatch[1],
+  };
+}
+
+function isLikelyNumberedSectionHeading(line: string, nextLine: string | null): boolean {
+  const questionMatch = line.match(questionPattern);
+  if (!questionMatch || yearPattern.test(line) || answerPattern.test(line) || parseOptionLine(line)) {
+    return false;
+  }
+
+  const headingText = (questionMatch[3] ?? '').trim();
+  if (!headingText) {
+    return false;
+  }
+
+  const wordCount = headingText.split(/\s+/).filter(Boolean).length;
+  const isShort = headingText.length <= 90 && wordCount <= 10;
+  const nextLooksLikeQuestion = nextLine ? questionPattern.test(nextLine) : false;
+  const endsLikeQuestion = /[?？]|[।.]$/.test(headingText);
+
+  return isShort && nextLooksLikeQuestion && !endsLikeQuestion;
+}
+
+function getNextTextLine(entries: ParsedBlock[], startIndex: number): string | null {
+  for (let index = startIndex; index < entries.length; index += 1) {
+    const nextText = entries[index].text.trim();
+    if (nextText) {
+      return nextText;
+    }
+  }
+
+  return null;
+}
+
+export async function parseDoc(
+  file: File | Blob | ArrayBuffer | Uint8Array,
+  settings?: PptSettings,
+): Promise<ParsedDocument> {
+  if (settings) {
+    PptSettingsSchema.parse(settings);
+  }
+
+  const arrayBuffer = await toArrayBuffer(file);
+  const buffer = Buffer.isBuffer(file) ? file : Buffer.from(arrayBuffer);
+  const blocks = await extractDocxBlocks(buffer);
   const sections: Section[] = [
     {
       title: DEFAULT_SECTION_TITLE,
@@ -206,6 +464,25 @@ export async function parseDoc(
     currentSection.questions.push(newQuestion);
     currentQuestion = newQuestion;
     return newQuestion;
+  };
+
+  const startSection = (title: string) => {
+    const cleanTitle = title.trim();
+    if (!cleanTitle) {
+      return;
+    }
+
+    if (currentSection.title === DEFAULT_SECTION_TITLE && currentSection.questions.length === 0) {
+      currentSection.title = cleanTitle;
+    } else {
+      currentSection = {
+        title: cleanTitle,
+        questions: [],
+      };
+      sections.push(currentSection);
+    }
+
+    currentQuestion = null;
   };
 
   const appendTextToQuestion = (question: Question, text: string) => {
@@ -233,102 +510,112 @@ export async function parseDoc(
     appendImageToQuestion(orphanQuestion, src);
   };
 
-  for (const block of blocks) {
-    if (block.images.length > 0) {
-      for (const src of block.images) {
-        addOrAttachImage(src);
-      }
+  const entries = blocks.flatMap((block) => {
+    const textEntries = splitTextIntoLines(block.text).map((line) => ({
+      text: line,
+      html: block.html,
+      images: [] as string[],
+    }));
+
+    if (block.images.length === 0) {
+      return textEntries;
     }
 
-    if (!block.text) {
+    return [
+      ...textEntries,
+      {
+        text: '',
+        html: block.html,
+        images: block.images,
+      },
+    ];
+  });
+
+  for (let index = 0; index < entries.length; index += 1) {
+    const entry = entries[index];
+
+    for (const src of entry.images) {
+      addOrAttachImage(src);
+    }
+
+    if (!entry.text) {
       continue;
     }
 
-    const lines = splitTextIntoLines(block.text);
-    const blockLooksLikeHeading = isHeadingLine(block.text, block.html);
+    const line = entry.text;
+    const questionMatch = line.match(questionPattern);
+    const answerMatch = line.match(answerPattern);
+    const optionMatch = parseOptionLine(line);
+    const yearMatch = line.match(yearPattern);
+    const blockLooksLikeHeading = isHeadingLine(line, entry.html);
+    const nextTextLine = getNextTextLine(entries, index + 1);
 
-    for (const line of lines) {
-      const questionMatch = line.match(questionPattern);
-      const optionMatch = line.match(optionPattern);
-      const answerMatch = line.match(answerPattern);
-      const yearMatch = line.match(yearPattern);
-      const isOption = Boolean(optionMatch);
-      const isAnswer = Boolean(answerMatch);
-      const isQuestion = Boolean(questionMatch);
-
-      if (isQuestion) {
-        const questionNo = `${questionMatch?.[1] ?? ''}${questionMatch?.[2] ?? ''}`.trim();
-        const remainder = questionMatch?.[3]?.trim() ?? '';
-        currentQuestion = createQuestion(questionNo);
-
-        if (yearMatch && remainder.includes(`[${yearMatch[1]}]`)) {
-          currentQuestion.year = yearMatch[1];
-        }
-
-        if (answerMatch) {
-          currentQuestion.answer = answerMatch[1].trim();
-        }
-
-        if (remainder) {
-          appendTextToQuestion(currentQuestion, remainder);
-        }
-
-        continue;
-      }
-
-      if (blockLooksLikeHeading && currentSection.questions.length === 0 && !currentQuestion) {
-        currentSection.title = line;
-        continue;
-      }
-
-      if (isOption) {
-        const question = currentQuestion ?? createQuestion('');
-
-        const optionText = optionMatch?.[2]?.trim() ?? '';
-        question.options.push(optionText);
-        continue;
-      }
-
-      if (isAnswer) {
-        const question = currentQuestion ?? createQuestion('');
-
-        question.answer = answerMatch?.[1]?.trim();
-        continue;
-      }
-
-      if (yearMatch) {
-        const question = currentQuestion ?? createQuestion('');
-
-        question.year = yearMatch[1];
-        const lineWithoutYear = line.replace(yearPattern, '').trim();
-        if (lineWithoutYear) {
-          appendTextToQuestion(question, lineWithoutYear);
-        }
-        continue;
-      }
-
-      if (blockLooksLikeHeading && line.length <= 120 && line.split(/\s+/).length <= 12) {
-        currentSection = {
-          title: line,
-          questions: [],
-        };
-        sections.push(currentSection);
-        currentQuestion = null;
-        continue;
-      }
-
-      if (!currentQuestion) {
-        currentSection = {
-          title: line,
-          questions: [],
-        };
-        sections.push(currentSection);
-        currentQuestion = null;
-        continue;
-      }
-
-      appendTextToQuestion(currentQuestion, line);
+    if (isLikelyNumberedSectionHeading(line, nextTextLine)) {
+      startSection(line);
+      continue;
     }
+
+    if (questionMatch) {
+      const questionNo = questionMatch[1]?.trim() ?? '';
+      const { text: remainder, year } = removeYearTag(questionMatch[3]?.trim() ?? '');
+      currentQuestion = createQuestion(questionNo);
+
+      if (year) {
+        currentQuestion.year = year;
+      } else if (yearMatch) {
+        currentQuestion.year = yearMatch[1];
+      }
+
+      if (answerMatch) {
+        currentQuestion.answer = cleanAnswer(answerMatch[1]);
+      }
+
+      if (remainder) {
+        appendTextToQuestion(currentQuestion, remainder);
+      }
+
+      continue;
+    }
+
+    if (blockLooksLikeHeading && currentSection.questions.length === 0 && !currentQuestion) {
+      startSection(line);
+      continue;
+    }
+
+    if (optionMatch) {
+      const question = currentQuestion ?? createQuestion('');
+      question.options.push(formatOption(optionMatch.label, optionMatch.text));
+      continue;
+    }
+
+    if (answerMatch) {
+      const question = currentQuestion ?? createQuestion('');
+      question.answer = cleanAnswer(answerMatch[1] ?? '');
+      currentQuestion = null;
+      continue;
+    }
+
+    if (yearMatch) {
+      const question = currentQuestion ?? createQuestion('');
+      question.year = yearMatch[1];
+      const lineWithoutYear = line.replace(yearPattern, '').trim();
+      if (lineWithoutYear) {
+        appendTextToQuestion(question, lineWithoutYear);
+      }
+      continue;
+    }
+
+    if (blockLooksLikeHeading && line.length <= 120 && line.split(/\s+/).length <= 12 && !currentQuestion) {
+      startSection(line);
+      continue;
+    }
+
+    if (!currentQuestion) {
+      startSection(line);
+      continue;
+    }
+
+    appendTextToQuestion(currentQuestion, line);
   }
 
   return {

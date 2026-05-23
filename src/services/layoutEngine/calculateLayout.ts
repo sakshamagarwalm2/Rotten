@@ -22,9 +22,12 @@ export interface Slide {
 const LINE_HEIGHT_MULTIPLIER = 1.2;
 const AVERAGE_CHAR_WIDTH_RATIO = 0.55;
 const IMAGE_PLACEHOLDER_HEIGHT_RATIO = 5;
+const POINTS_PER_INCH = 72;
+const ITEM_GAP_INCHES = 0.16;
 
 function clampLineWidth(width: number, fontSize: number): number {
-  return Math.max(fontSize * 10, width);
+  const widthInPoints = width * POINTS_PER_INCH;
+  return Math.max(fontSize * 8, widthInPoints);
 }
 
 function calculateLineCount(text: string, width: number, fontSize: number): number {
@@ -46,7 +49,7 @@ function calculateLineCount(text: string, width: number, fontSize: number): numb
 
 function calculateTextHeight(text: string, width: number, fontSize: number, lineSpacing: number): number {
   const lineCount = calculateLineCount(text, width, fontSize);
-  return lineCount * fontSize * lineSpacing;
+  return (lineCount * fontSize * lineSpacing * LINE_HEIGHT_MULTIPLIER) / POINTS_PER_INCH;
 }
 
 function calculateOptionHeights(options: string[], width: number, fontSize: number, lineSpacing: number): {
@@ -67,7 +70,7 @@ function calculateAnswerHeight(answer: string | null, width: number, fontSize: n
 }
 
 function calculateImagesHeight(images: string[], fontSize: number): number {
-  return images.length * fontSize * IMAGE_PLACEHOLDER_HEIGHT_RATIO;
+  return (images.length * fontSize * IMAGE_PLACEHOLDER_HEIGHT_RATIO) / POINTS_PER_INCH;
 }
 
 function normalizeQuestionInput(question: NormalizedQuestion | null | undefined): NormalizedQuestion {
@@ -115,7 +118,7 @@ export function calculateLayout(
 
   const addItem = (item: SlideItem) => {
     currentItems.push(item);
-    currentY += item.height + 20; // Fixed gap since setting was removed
+    currentY += item.height + ITEM_GAP_INCHES;
   };
 
   const renderSectionTitle = (title: string) => {
@@ -145,8 +148,9 @@ export function calculateLayout(
     const answerHeight = settings.showAnswer ? calculateAnswerHeight(question.answer, settings.contentArea.width, settings.fontSize, settings.lineSpacing) : 0;
     const imagesHeight = calculateImagesHeight(question.images, settings.fontSize);
     const questionBlockHeight = questionTextHeight + optionsData.totalHeight + answerHeight + imagesHeight;
+    const itemHeight = Math.min(questionBlockHeight, settings.contentArea.height);
 
-    startNewSlideIfNeeded(questionBlockHeight);
+    startNewSlideIfNeeded(itemHeight);
     addItem({
       type: 'question',
       content: {
@@ -162,7 +166,7 @@ export function calculateLayout(
       x: settings.contentArea.left,
       y: currentY,
       width: settings.contentArea.width,
-      height: questionBlockHeight,
+      height: itemHeight,
     });
   };
 

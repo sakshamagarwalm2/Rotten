@@ -40,6 +40,14 @@ function normalizeOptions(options: string[] | undefined): string[] {
     .filter((option) => option.length > 0);
 }
 
+function normalizeQuestionNo(questionNo: unknown): string {
+  if (typeof questionNo !== 'string') {
+    return '';
+  }
+
+  return normalizeText(questionNo).replace(/[.)]+$/g, '');
+}
+
 function normalizeImages(images: string[] | undefined): string[] {
   if (!Array.isArray(images)) {
     return [];
@@ -51,7 +59,7 @@ function normalizeImages(images: string[] | undefined): string[] {
 function normalizeQuestion(question: any): NormalizedQuestion {
   return {
     id: typeof question.id === 'number' ? question.id : 0,
-    questionNo: typeof question.questionNo === 'string' ? normalizeText(question.questionNo) : '',
+    questionNo: normalizeQuestionNo(question.questionNo),
     text: typeof question.text === 'string' ? normalizeText(question.text) : '',
     options: normalizeOptions(question.options),
     year: typeof question.year === 'string' && question.year.trim().length > 0 ? question.year.trim() : null,
