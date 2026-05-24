@@ -8,6 +8,8 @@ import { logger } from '../../utils/logger';
 
 const QUESTION_LABEL = '\u092a\u094d\u0930\u0936\u094d\u0928';
 const ANSWER_LABEL = '\u0909\u0924\u094d\u0924\u0930';
+const POINTS_PER_INCH = 72;
+const YEAR_TAG_WIDTH = 1.2;
 
 function getBulletPrefix(bulletStyle: string, index: number, showBulletPoints: boolean): string {
   if (!showBulletPoints || bulletStyle === 'none') return '';
@@ -43,7 +45,7 @@ function normalizeAnswerKey(answer: string | null | undefined): string {
 }
 
 function splitOption(option: string): { label: string | null; body: string } {
-  const match = option.match(/^\s*\(([a-d])\)\s*(.*)$/);
+  const match = option.match(/^\s*\(([a-zA-Z\d])\)\s*(.*)$/);
   if (!match) {
     return { label: null, body: option };
   }
@@ -90,13 +92,6 @@ function createHeadingSegments(item: SlideItem, settings: PptSettings) {
     });
   }
 
-  if (question?.year) {
-    segments.push({
-      text: `  [${question.year}]`,
-      options: { fontSize: settings.headingFontSize * 0.7, color: settings.yearColor, bold: true },
-    });
-  }
-
   return segments;
 }
 
@@ -127,7 +122,8 @@ function createOptionSegments(item: SlideItem, settings: PptSettings): { segment
         });
       }
 
-      if (optionParts.label) {
+      const userBulletActive = settings.showBulletPoints && settings.bulletStyle !== 'none';
+      if (optionParts.label && !userBulletActive) {
         segments.push({
           text: `(${optionParts.label}) `,
           options: {
@@ -270,12 +266,16 @@ function renderQuestionItem(slide: any, item: SlideItem, settings: PptSettings) 
   let currentY = item.y;
 
   // Question heading (fontSize: headingFontSize)
+  const year = item.content?.question?.year;
+  const yearTagActive = !!year;
+  const headingWidth = yearTagActive ? Math.max(1, item.width - YEAR_TAG_WIDTH) : item.width;
+
   const headingSegments = createHeadingSegments(item, renderSettings);
   if (headingSegments.length > 0) {
     slide.addText(headingSegments, {
       x: item.x,
       y: currentY,
-      w: item.width,
+      w: headingWidth,
       h: textHeight,
       align: 'left' as const,
       valign: 'top' as const,
@@ -283,7 +283,36 @@ function renderQuestionItem(slide: any, item: SlideItem, settings: PptSettings) 
       wrap: true,
       fit: 'shrink',
     });
-    currentY += textHeight + 0.05;
+  }
+
+  // Year tag (top-right, fixed position)
+  if (yearTagActive) {
+    const yearTagH = Math.max(0.3, (renderSettings.headingFontSize * renderSettings.lineSpacing) / POINTS_PER_INCH);
+    slide.addText(
+      [
+        {
+          text: `[${year}]`,
+          options: {
+            fontSize: renderSettings.headingFontSize * 0.7,
+            color: renderSettings.yearColor,
+            bold: true,
+          },
+        },
+      ],
+      {
+        x: item.x + item.width - YEAR_TAG_WIDTH,
+        y: currentY,
+        w: YEAR_TAG_WIDTH,
+        h: yearTagH,
+        align: 'right' as const,
+        valign: 'top' as const,
+        wrap: false,
+      },
+    );
+  }
+
+  if (headingSegments.length > 0 || yearTagActive) {
+    currentY += textHeight + 0.04;
   }
 
   // Options (fontSize: fontSize)
@@ -300,7 +329,7 @@ function renderQuestionItem(slide: any, item: SlideItem, settings: PptSettings) 
       wrap: true,
       fit: 'shrink',
     });
-    currentY += optionTotalHeight + 0.05;
+    currentY += optionTotalHeight + 0.04;
   }
 
   // Images

@@ -53,7 +53,7 @@ const questionPattern = new RegExp(
   `^(?:(?:${HINDI_QUESTION}|Q(?:uestion)?)\\s*)?(\\d{1,3})([.)])\\s+(.+)$`,
   'i',
 );
-const optionPattern = /^(?:\(([a-d])\)|([a-d])[.)])\s*(.*)$/;
+const optionPattern = /^(?:\(([a-d])\)|([a-d])[.)])\s*(.*)$/i;
 const answerPattern = new RegExp(
   `^(?:${HINDI_ANSWER}|answer|ans)\\s*[:\\-\\u2013\\u2014]?\\s*(.+)$`,
   'i',
@@ -473,15 +473,15 @@ function removeYearTag(text: string): { text: string; year: string | undefined }
   };
 }
 
-function isLikelyNumberedSectionHeading(line: string, nextLine: string | null): boolean {
+function isLikelyNumberedSectionHeading(line: string, nextLine: string | null): string | null {
   const questionMatch = line.match(questionPattern);
   if (!questionMatch || yearPattern.test(line) || answerPattern.test(line) || parseOptionLine(line)) {
-    return false;
+    return null;
   }
 
   const headingText = (questionMatch[3] ?? '').trim();
   if (!headingText) {
-    return false;
+    return null;
   }
 
   const wordCount = headingText.split(/\s+/).filter(Boolean).length;
@@ -489,7 +489,7 @@ function isLikelyNumberedSectionHeading(line: string, nextLine: string | null): 
   const nextLooksLikeQuestion = nextLine ? questionPattern.test(nextLine) : false;
   const endsLikeQuestion = /[?？]|[।.]$/.test(headingText);
 
-  return isShort && nextLooksLikeQuestion && !endsLikeQuestion;
+  return isShort && nextLooksLikeQuestion && !endsLikeQuestion ? headingText : null;
 }
 
 function getNextTextLine(entries: ParsedBlock[], startIndex: number): string | null {
@@ -628,8 +628,9 @@ export async function parseDoc(
     const blockLooksLikeHeading = isHeadingLine(line, entry.html);
     const nextTextLine = getNextTextLine(entries, index + 1);
 
-    if (isLikelyNumberedSectionHeading(line, nextTextLine)) {
-      startSection(line);
+    const sectionHeading = isLikelyNumberedSectionHeading(line, nextTextLine);
+    if (sectionHeading) {
+      startSection(sectionHeading);
       continue;
     }
 

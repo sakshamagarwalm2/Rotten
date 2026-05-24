@@ -20,10 +20,9 @@ export interface Slide {
   items: SlideItem[];
 }
 
-const LINE_HEIGHT_MULTIPLIER = 1.2;
 const AVERAGE_CHAR_WIDTH_RATIO = 0.55;
 const POINTS_PER_INCH = 72;
-const ITEM_GAP_INCHES = 0.16;
+const YEAR_TAG_WIDTH = 1.2;
 
 function clampLineWidth(width: number, fontSize: number): number {
   const widthInPoints = width * POINTS_PER_INCH;
@@ -49,7 +48,7 @@ function calculateLineCount(text: string, width: number, fontSize: number): numb
 
 function calculateTextHeight(text: string, width: number, fontSize: number, lineSpacing: number): number {
   const lineCount = calculateLineCount(text, width, fontSize);
-  return (lineCount * fontSize * lineSpacing * LINE_HEIGHT_MULTIPLIER) / POINTS_PER_INCH;
+  return (lineCount * fontSize * lineSpacing) / POINTS_PER_INCH;
 }
 
 function calculateOptionHeights(options: string[], width: number, fontSize: number, lineSpacing: number): {
@@ -133,7 +132,7 @@ export function calculateLayout(
 
   const addItem = (item: SlideItem) => {
     currentItems.push(item);
-    currentY += item.height + ITEM_GAP_INCHES;
+    currentY += item.height + 0.04;
   };
 
   const renderSectionTitle = (title: string) => {
@@ -162,7 +161,9 @@ export function calculateLayout(
       ? `${question.questionNo}. ${question.text}`
       : question.text;
 
-    const questionTextHeight = calculateTextHeight(questionText, settings.contentArea.width, settings.headingFontSize, settings.lineSpacing);
+    const yearTagWidth = question.year ? YEAR_TAG_WIDTH : 0;
+    const questionTextWidth = Math.max(1, settings.contentArea.width - yearTagWidth);
+    const questionTextHeight = calculateTextHeight(questionText, questionTextWidth, settings.headingFontSize, settings.lineSpacing);
     const optionsData = calculateOptionHeights(question.options, settings.contentArea.width, settings.fontSize, settings.lineSpacing);
     const answerHeight = settings.showAnswer ? calculateAnswerHeight(question.answer, settings.contentArea.width, settings.fontSize, settings.lineSpacing) : 0;
     const imagesHeight = calculateImagesHeight(question.images, settings.contentArea.width);
