@@ -38,7 +38,9 @@ export default function SettingsPanel({ onBackgroundChange, showPreview, onToggl
   // Display Options
   const [showAnswer, setShowAnswer] = useState(defaultSettings.showAnswer);
   const [showBulletPoints, setShowBulletPoints] = useState(defaultSettings.showBulletPoints);
+  const [showYearTag, setShowYearTag] = useState(defaultSettings.showYearTag);
   const [bulletStyle, setBulletStyle] = useState<'disc' | 'circle' | 'square' | 'number' | 'letters' | 'none'>(defaultSettings.bulletStyle);
+  const [headingPosition, setHeadingPosition] = useState<'topLeft' | 'topMiddle' | 'center'>(defaultSettings.headingPosition);
   
   // Upload States
   const [uploadId, setUploadId] = useState<string | null>(null);
@@ -127,7 +129,9 @@ export default function SettingsPanel({ onBackgroundChange, showPreview, onToggl
       answerColor,
       showAnswer,
       showBulletPoints,
+      showYearTag,
       bulletStyle,
+      headingPosition,
       contentArea: {
         top: verticalMargin,
         left: horizontalMargin,
@@ -223,7 +227,9 @@ export default function SettingsPanel({ onBackgroundChange, showPreview, onToggl
             answerColor={answerColor}
             showAnswer={showAnswer}
             showBulletPoints={showBulletPoints}
+            showYearTag={showYearTag}
             bulletStyle={bulletStyle}
+            headingPosition={headingPosition}
           />
         </div>
       )}
@@ -395,6 +401,16 @@ export default function SettingsPanel({ onBackgroundChange, showPreview, onToggl
               <span className="text-sm font-medium text-[#374151]">Show Bullet Points</span>
             </label>
 
+            <label className="flex cursor-pointer items-center gap-3">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-[#e5e7eb] accent-[#111111]"
+                checked={showYearTag}
+                onChange={(e) => setShowYearTag(e.target.checked)}
+              />
+              <span className="text-sm font-medium text-[#374151]">Show Year Tag</span>
+            </label>
+
             {showBulletPoints && (
               <div className="ml-7">
                 <label className="mb-2 block text-sm font-medium text-[#374151]">Bullet Style</label>
@@ -412,6 +428,29 @@ export default function SettingsPanel({ onBackgroundChange, showPreview, onToggl
                 </select>
               </div>
             )}
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-[#374151]">Heading Position</label>
+              <div className="flex gap-4">
+                {[
+                  { value: 'topLeft', label: 'Top Left' },
+                  { value: 'topMiddle', label: 'Top Middle' },
+                  { value: 'center', label: 'Centre' },
+                ].map((option) => (
+                  <label key={option.value} className="flex cursor-pointer items-center gap-2">
+                    <input
+                      type="radio"
+                      name="headingPosition"
+                      value={option.value}
+                      checked={headingPosition === option.value}
+                      onChange={(e) => setHeadingPosition(e.target.value as any)}
+                      className="h-4 w-4 accent-[#111111]"
+                    />
+                    <span className="text-sm text-[#374151]">{option.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 

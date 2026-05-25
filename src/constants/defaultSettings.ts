@@ -13,7 +13,9 @@ export const defaultSettings = PptSettingsSchema.parse({
   answerColor: '#16a34a',
   showAnswer: true,
   showBulletPoints: true,
+  showYearTag: true,
   bulletStyle: 'disc',
+  headingPosition: 'topLeft',
   contentArea: {
     top: 0.5,
     left: 0.5,

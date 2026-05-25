@@ -277,16 +277,16 @@ function renderQuestionItem(slide: any, item: SlideItem, settings: PptSettings) 
       y: currentY,
       w: headingWidth,
       h: textHeight,
-      align: 'left' as const,
+      align: 'justify' as const,
       valign: 'top' as const,
+      margin: 0,
       lineSpacing: renderSettings.lineSpacing * renderSettings.headingFontSize,
       wrap: true,
-      fit: 'shrink',
     });
   }
 
   // Year tag (top-right, fixed position)
-  if (yearTagActive) {
+  if (yearTagActive && renderSettings.showYearTag) {
     const yearTagH = Math.max(0.3, (renderSettings.headingFontSize * renderSettings.lineSpacing) / POINTS_PER_INCH);
     slide.addText(
       [
@@ -312,7 +312,7 @@ function renderQuestionItem(slide: any, item: SlideItem, settings: PptSettings) 
   }
 
   if (headingSegments.length > 0 || yearTagActive) {
-    currentY += textHeight + 0.04;
+    currentY += textHeight;
   }
 
   // Options (fontSize: fontSize)
@@ -323,13 +323,13 @@ function renderQuestionItem(slide: any, item: SlideItem, settings: PptSettings) 
       y: currentY,
       w: item.width,
       h: optionTotalHeight,
-      align: 'left' as const,
+      align: 'justify' as const,
       valign: 'top' as const,
+      margin: 0,
       lineSpacing: renderSettings.lineSpacing * renderSettings.fontSize,
       wrap: true,
-      fit: 'shrink',
     });
-    currentY += optionTotalHeight + 0.04;
+    currentY += optionTotalHeight;
   }
 
   // Images
@@ -380,11 +380,11 @@ function renderQuestionItem(slide: any, item: SlideItem, settings: PptSettings) 
         y: currentY,
         w: item.width,
         h: answerH || 0.4,
-        align: 'left' as const,
+        align: 'justify' as const,
         valign: 'top' as const,
+        margin: 0,
         lineSpacing: renderSettings.lineSpacing * renderSettings.fontSize,
         wrap: true,
-        fit: 'shrink',
       });
     }
   }
@@ -432,13 +432,23 @@ export async function generatePpt(
             options: { fontSize: titleFontSize, color: sectionColor, bold: true },
           },
         ];
+
+        const sectionAlign = settings.headingPosition === 'center'
+          ? 'center' as const
+          : settings.headingPosition === 'topMiddle'
+            ? 'center' as const
+            : 'left' as const;
+        const sectionValign = settings.headingPosition === 'center'
+          ? 'middle' as const
+          : 'top' as const;
+
         slide.addText(segments, {
           x: item.x,
           y: item.y,
           w: item.width,
           h: item.height,
-          align: 'center' as const,
-          valign: 'middle' as const,
+          align: sectionAlign,
+          valign: sectionValign,
           wrap: true,
           fit: 'shrink',
         });

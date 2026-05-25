@@ -20,7 +20,9 @@ export const PptSettingsSchema = z.object({
   // Display Options
   showAnswer: z.boolean(),
   showBulletPoints: z.boolean(),
+  showYearTag: z.boolean(),
   bulletStyle: z.enum(['disc', 'circle', 'square', 'number', 'letters', 'none']),
+  headingPosition: z.enum(['topLeft', 'topMiddle', 'center']),
   
   // Layout
   contentArea: z.object({

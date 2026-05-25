@@ -13,7 +13,9 @@ type PreviewProps = {
   answerColor: string;
   showAnswer: boolean;
   showBulletPoints: boolean;
+  showYearTag: boolean;
   bulletStyle: 'disc' | 'circle' | 'square' | 'number' | 'letters' | 'none';
+  headingPosition: 'topLeft' | 'topMiddle' | 'center';
 };
 
 export default function Preview({ 
@@ -29,7 +31,9 @@ export default function Preview({
   answerColor,
   showAnswer,
   showBulletPoints,
-  bulletStyle
+  showYearTag,
+  bulletStyle,
+  headingPosition
 }: PreviewProps) {
   // Scale margins for preview (assuming input is in inches or similar scale)
   const leftPadding = horizontalMargin * 64; 
@@ -79,10 +83,10 @@ export default function Preview({
             >
                
               {/* Question & Year Tag Container */}
-              <div className="mb-6 min-w-0">
-                <div className="flex flex-wrap items-baseline gap-3">
+              <div className={`min-w-0 ${headingPosition === 'topLeft' ? 'mb-6' : ''} ${headingPosition === 'center' ? 'flex flex-1 flex-col justify-center' : ''}`}>
+                <div className={`flex flex-wrap gap-3 ${headingPosition === 'topLeft' ? 'items-baseline' : ''} ${headingPosition === 'topMiddle' || headingPosition === 'center' ? 'justify-center' : ''}`}>
                   <h3 
-                    className="font-semibold break-words" 
+                    className={`font-semibold break-words ${headingPosition === 'topMiddle' || headingPosition === 'center' ? 'text-center' : ''}`}
                     style={{ 
                       fontSize: `${headingFontSize}px`,
                       lineHeight: lineSpacing,
@@ -91,16 +95,18 @@ export default function Preview({
                     <span style={{ color: questionNoOptionNoColor }}>प्रश्न 1. </span>
                     <span style={{ color: questionOptionColor }}>निम्नलिखित में से कौन सा शहर गंगा नदी के तट पर स्थित नहीं है?</span>
                   </h3>
-                  <span 
-                    className="inline-block rounded-full px-3 py-1 font-semibold text-white whitespace-nowrap"
-                    style={{ 
-                      backgroundColor: yearColor,
-                      fontSize: `${headingFontSize * 0.6}px`, // Scaled relative to question size
-                      lineHeight: '1'
-                    }}
-                  >
-                    2023
-                  </span>
+                  {showYearTag && (
+                    <span 
+                      className="inline-block rounded-full px-3 py-1 font-semibold text-white whitespace-nowrap"
+                      style={{ 
+                        backgroundColor: yearColor,
+                        fontSize: `${headingFontSize * 0.6}px`,
+                        lineHeight: '1'
+                      }}
+                    >
+                      2023
+                    </span>
+                  )}
                 </div>
               </div>
 
