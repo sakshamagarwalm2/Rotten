@@ -3,19 +3,6 @@ import { logger } from '../../utils/logger';
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
 
-let groqInstance: Groq | null = null;
-
-function getGroqClient(): Groq {
-  if (!groqInstance) {
-    if (!GROQ_API_KEY) {
-      throw new Error('GROQ_API_KEY is not set in environment variables');
-    }
-    groqInstance = new Groq({ apiKey: GROQ_API_KEY });
-    logger.info('[groqClient] Groq client initialized');
-  }
-  return groqInstance;
-}
-
 export interface GroqChatMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
@@ -27,11 +14,18 @@ export async function groqChatCompletion(
     model?: string;
     temperature?: number;
     maxTokens?: number;
+    apiKey?: string;
   },
 ): Promise<string | null> {
   const model = options?.model ?? 'llama-3.3-70b-versatile';
   const temperature = options?.temperature ?? 0.1;
   const maxTokens = options?.maxTokens ?? 4096;
+  const apiKey = options?.apiKey || GROQ_API_KEY;
+
+  if (!apiKey) {
+    logger.error('[groqClient] No API key provided');
+    return null;
+  }
 
   logger.section('Groq API Call');
   logger.info(`[groqClient] model: ${model}`);
@@ -42,7 +36,7 @@ export async function groqChatCompletion(
   logger.debug('[groqClient] user message:', messages.find(m => m.role === 'user')?.content.substring(0, 200));
 
   try {
-    const client = getGroqClient();
+    const client = new Groq({ apiKey });
     const startTime = Date.now();
 
     const completion = await client.chat.completions.create({

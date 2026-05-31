@@ -6,12 +6,13 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "postbuild": "node -e \"const fs=require('fs'); const path=require('path'); function copy(src,dest){fs.mkdirSync(dest,{recursive:true});for(const e of fs.readdirSync(src,{withFileTypes:true})){const s=path.join(src,e.name);const d=path.join(dest,e.name);if(e.isDirectory())copy(s,d);else fs.copyFileSync(s,d)}} copy(path.join('.next','static'),path.join('.next','standalone','.next','static')); copy(path.join('public'),path.join('.next','standalone','public')); console.log('Static files copied to standalone');\"",
     "typecheck": "tsc --noEmit",
     "lint": "next lint",
     "electron": "cross-env NODE_ENV=development electron .",
     "electron:dev": "concurrently \"npm run dev\" \"wait-on http://localhost:3000 && npm run electron\"",
-    "electron:build": "next build && electron-builder",
-    "electron:build:win": "next build && electron-builder --win"
+    "electron:build": "npm run build && npm run postbuild && electron-builder",
+    "electron:build:win": "npm run build && npm run postbuild && electron-builder --win"
   },
   "dependencies": {
     "groq-sdk": "^1.2.0",

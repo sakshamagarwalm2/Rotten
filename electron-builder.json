@@ -6,8 +6,22 @@
   },
   "files": [
     "electron/**/*",
-    "out/**/*",
+    ".next/standalone/**/*",
+    ".next/static/**/*",
+    "public/**/*",
     "package.json"
+  ],
+  "asarUnpack": [
+    ".next/standalone/**/*",
+    ".next/static/**/*",
+    "node_modules/next/**/*"
+  ],
+  "extraResources": [
+    {
+      "from": "tmp",
+      "to": "tmp",
+      "filter": ["**/*"]
+    }
   ],
   "win": {
     "target": [

@@ -7,7 +7,7 @@ import { z } from 'zod';
 
 const DOCX_MAX_SIZE = 20 * 1024 * 1024;
 const BACKGROUND_MAX_SIZE = 10 * 1024 * 1024;
-const UPLOAD_BASE_DIR = path.join(process.cwd(), 'tmp', 'uploads');
+const UPLOAD_BASE_DIR = process.env.UPLOAD_DIR || path.join(process.cwd(), 'tmp', 'uploads');
 
 export const runtime = 'nodejs';
 

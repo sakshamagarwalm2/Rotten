@@ -71,6 +71,7 @@ function extractJsonFromResponse(text: string): string {
 export async function analyzeWithGroq(
   rawText: string,
   docxFileName?: string,
+  apiKey?: string,
 ): Promise<AiDocument | null> {
   logger.section('AI Slide Analyzer');
   logger.info(`[slideAnalyzer] Analyzing document: ${docxFileName ?? 'unknown'}`);
@@ -90,10 +91,13 @@ Document text:
 ${rawText}
 ---`;
 
-  const response = await groqChatCompletion([
-    { role: 'system', content: SYSTEM_PROMPT },
-    { role: 'user', content: userMessage },
-  ]);
+  const response = await groqChatCompletion(
+    [
+      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'user', content: userMessage },
+    ],
+    { apiKey },
+  );
 
   if (!response) {
     logger.error('[slideAnalyzer] Groq returned no response');

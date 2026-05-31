@@ -12,13 +12,14 @@ import { analyzeWithGroq, type AiDocument } from '../../../services/aiAnalyzer/s
 import { convertOmmXmlString } from '../../../services/docParser/extractMath';
 import { logger } from '../../../utils/logger';
 
-const UPLOAD_BASE_DIR = path.join(process.cwd(), 'tmp', 'uploads');
+const UPLOAD_BASE_DIR = process.env.UPLOAD_DIR || path.join(process.cwd(), 'tmp', 'uploads');
 
 export const runtime = 'nodejs';
 
 const GenerateRequestSchema = z.object({
   uploadId: z.string().uuid(),
   settings: PptSettingsSchema,
+  groqApiKey: z.string().optional(),
 });
 
 const MAX_AI_ANALYSIS_CHARS = 9000;
@@ -103,7 +104,7 @@ export async function POST(request: Request) {
 
     logger.info('[generate] Parsing with Zod schema...');
     const parsed = GenerateRequestSchema.parse(body);
-    const { uploadId, settings } = parsed;
+    const { uploadId, settings, groqApiKey } = parsed;
     logger.info('[generate] Zod parse SUCCEEDED');
     logger.debug('[generate] settings:', JSON.stringify(settings, null, 2));
 
@@ -137,7 +138,7 @@ export async function POST(request: Request) {
 
       if (rawTextForAi.length > 50 && rawTextForAi.length <= MAX_AI_ANALYSIS_CHARS) {
         logger.section('AI Content Detection Attempt');
-        const aiResult = await analyzeWithGroq(rawTextForAi, path.basename(metadata.docxPath));
+        const aiResult = await analyzeWithGroq(rawTextForAi, path.basename(metadata.docxPath), groqApiKey);
 
         if (aiResult && aiResult.sections.length > 0) {
           const totalQuestions = aiResult.sections.reduce((sum, s) => sum + s.questions.length, 0);

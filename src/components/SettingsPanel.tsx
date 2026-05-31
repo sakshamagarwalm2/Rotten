@@ -42,6 +42,19 @@ export default function SettingsPanel({ onBackgroundChange, showPreview, onToggl
   const [bulletStyle, setBulletStyle] = useState<'disc' | 'circle' | 'square' | 'number' | 'letters' | 'none'>(defaultSettings.bulletStyle);
   const [headingPosition, setHeadingPosition] = useState<'topLeft' | 'topMiddle' | 'center'>(defaultSettings.headingPosition);
   
+  // Groq API Key
+  const [groqApiKey, setGroqApiKey] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('groqApiKey') || '';
+    }
+    return '';
+  });
+  const [showApiKey, setShowApiKey] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem('groqApiKey', groqApiKey);
+  }, [groqApiKey]);
+
   // Upload States
   const [uploadId, setUploadId] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -146,7 +159,7 @@ export default function SettingsPanel({ onBackgroundChange, showPreview, onToggl
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ uploadId, settings }),
+        body: JSON.stringify({ uploadId, settings, groqApiKey: groqApiKey || undefined }),
       });
 
       if (!response.ok) {
@@ -265,6 +278,50 @@ export default function SettingsPanel({ onBackgroundChange, showPreview, onToggl
               Uploading...
             </div>
           )}
+
+          {/* Groq API Key */}
+          <div className="mt-4">
+            <label className="mb-2 block text-sm font-medium text-[#374151]">
+              Groq API Key
+              <span className="ml-1 text-xs text-[#6b7280]">(for AI-powered document analysis)</span>
+            </label>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <input
+                  type={showApiKey ? 'text' : 'password'}
+                  value={groqApiKey}
+                  onChange={(e) => setGroqApiKey(e.target.value)}
+                  placeholder="gsk_..."
+                  className="w-full rounded-lg border border-[#e5e7eb] bg-white px-3 py-2 pr-10 text-sm text-[#111111] focus:border-[#111111] focus:outline-none focus:ring-1 focus:ring-[#111111]"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowApiKey(!showApiKey)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[#6b7280] hover:text-[#111111]"
+                >
+                  {showApiKey ? (
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                    </svg>
+                  ) : (
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+              {groqApiKey && (
+                <button
+                  type="button"
+                  onClick={() => setGroqApiKey('')}
+                  className="flex h-9 items-center rounded-lg border border-[#e5e7eb] bg-white px-3 text-sm text-[#6b7280] hover:text-[#ef4444]"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Text Sizes */}
