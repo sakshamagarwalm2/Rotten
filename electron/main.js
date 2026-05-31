@@ -1,4 +1,4 @@
-const { app, BrowserWindow, globalShortcut } = require('electron');
+const { app, BrowserWindow, globalShortcut, ipcMain, session } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 const http = require('http');
@@ -14,9 +14,66 @@ let mainWindow;
 let serverProcess;
 let httpServer;
 let serverLogs = [];
+let diagnosticsLogPath;
+
+function diag(message, detail) {
+  const line = `[diagnostics] ${new Date().toISOString()} ${message}${detail ? ' ' + JSON.stringify(detail) : ''}`;
+  console.log(line);
+  serverLogs.push(line);
+  if (diagnosticsLogPath) {
+    try {
+      fs.appendFileSync(diagnosticsLogPath, line + '\n');
+    } catch (e) {
+      console.error('[diagnostics] failed to write diagnostics log:', e.message);
+    }
+  }
+}
+
+function initDiagnosticsLog() {
+  diagnosticsLogPath = path.join(app.getPath('userData'), 'diagnostics.log');
+  diag('main process diagnostics started', {
+    isPackaged: app.isPackaged,
+    userData: app.getPath('userData'),
+    logPath: diagnosticsLogPath,
+  });
+}
+
+function registerDiagnosticsIpc() {
+  ipcMain.handle('diagnostics:ping', async (_event, payload) => {
+    diag('IPC received diagnostics:ping', payload);
+    return { ok: true, receivedAt: new Date().toISOString() };
+  });
+
+  ipcMain.on('diagnostics:renderer-log', (_event, payload) => {
+    diag('IPC received diagnostics:renderer-log', payload);
+  });
+
+  diag('IPC handlers registered', ['diagnostics:ping', 'diagnostics:renderer-log']);
+}
+
+function registerNetworkDiagnostics() {
+  session.defaultSession.webRequest.onErrorOccurred((details) => {
+    diag('network request failed', {
+      error: details.error,
+      method: details.method,
+      resourceType: details.resourceType,
+      url: details.url,
+    });
+  });
+}
+
+process.on('uncaughtException', (error) => {
+  diag('main uncaughtException', { message: error.message, stack: error.stack });
+});
+
+process.on('unhandledRejection', (reason) => {
+  diag('main unhandledRejection', {
+    message: reason && reason.message ? reason.message : String(reason),
+    stack: reason && reason.stack ? reason.stack : undefined,
+  });
+});
 
 function showLoading(status) {
-  const logs = serverLogs.slice(-8).map(l => escapeHtml(l)).join('<br>');
   const html = `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>Rotten</title>
 <style>
@@ -26,13 +83,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .spinner{width:32px;height:32px;border:3px solid #333;border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 p{color:#aaa;font-size:14px;max-width:400px}
-.log{color:#666;font-size:11px;font-family:monospace;max-width:500px;word-break:break-all;line-height:1.4}
 .hint{color:#444;font-size:11px;margin-top:8px}
 </style></head><body>
 <div class="logo">R</div>
 <div class="spinner"></div>
 <p>${escapeHtml(status || 'Starting Rotten...')}</p>
-<div class="log">${logs}</div>
 <p class="hint">Press F12 to open DevTools</p>
 </body></html>`;
   mainWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
@@ -82,10 +137,17 @@ function startServer() {
 
     serverLogs.push('Standalone dir exists: ' + fs.existsSync(standaloneDir));
     serverLogs.push('server.js exists: ' + fs.existsSync(serverScript));
+    diag('production server check', {
+      standaloneDir,
+      serverScript,
+      standaloneExists: fs.existsSync(standaloneDir),
+      serverScriptExists: fs.existsSync(serverScript),
+    });
     showLoading('Starting server...');
 
     if (!fs.existsSync(serverScript)) {
       serverLogs.push('ERROR: server.js not found at: ' + serverScript);
+      diag('production server missing server.js', { serverScript });
       resolve(false);
       return;
     }
@@ -114,6 +176,7 @@ function startServer() {
 
       const { exe, envAdd } = nodeCandidates[nodeIndex];
       serverLogs.push('Trying node: ' + exe);
+      diag('production server trying node', { exe });
 
       try {
         serverProcess = spawn(exe, [serverScript], {
@@ -129,6 +192,7 @@ function startServer() {
         });
       } catch (e) {
         serverLogs.push('spawn threw: ' + e.message);
+        diag('production server spawn threw', { exe, message: e.message });
         nodeIndex++;
         trySpawn();
         return;
@@ -138,8 +202,11 @@ function startServer() {
         const text = data.toString();
         for (const line of text.split('\n').filter(Boolean)) {
           serverLogs.push(line);
+          diag('production server stdout', { line });
         }
-        showLoading('Server starting...');
+        if (!resolved) {
+          showLoading('Server starting...');
+        }
         if (!resolved && (text.includes('Ready') || text.includes('localhost:3000'))) {
           resolved = true;
           resolve(true);
@@ -150,17 +217,22 @@ function startServer() {
         const text = data.toString();
         for (const line of text.split('\n').filter(Boolean)) {
           serverLogs.push('ERR: ' + line);
+          diag('production server stderr', { line });
         }
-        showLoading('Server error...');
+        if (!resolved) {
+          showLoading('Server error...');
+        }
       });
 
       serverProcess.on('error', (err) => {
         serverLogs.push('Process error (' + exe + '): ' + err.message);
+        diag('production server process error', { exe, message: err.message });
         nodeIndex++;
         trySpawn();
       });
 
       serverProcess.on('exit', (code) => {
+        diag('production server exited', { code });
         if (!resolved) {
           serverLogs.push('Server exited with code: ' + code);
         }
@@ -173,6 +245,7 @@ function startServer() {
     setTimeout(() => {
       if (!resolved) {
         serverLogs.push('Server start timed out after 15s');
+        diag('production server start timed out');
         showLoading('Timed out - loading app...');
         resolved = true;
         resolve(true);
@@ -182,6 +255,7 @@ function startServer() {
 }
 
 function loadApp() {
+  diag('loading renderer URL', { url: 'http://localhost:3000' });
   mainWindow.loadURL('http://localhost:3000');
 }
 
@@ -200,6 +274,7 @@ function createWindow() {
 
   mainWindow.webContents.on('did-finish-load', () => {
     const url = mainWindow.webContents.getURL();
+    diag('renderer did-finish-load', { url });
     if (url.startsWith('http://localhost:3000')) {
       serverLogs.push('App loaded successfully');
     }
@@ -207,9 +282,27 @@ function createWindow() {
 
   mainWindow.webContents.on('did-fail-load', (e, code, desc, url) => {
     if (code === -3) return; // ERR_ABORTED – navigation cancelled by another navigation, harmless
+    diag('renderer did-fail-load', { code, desc, url });
     serverLogs.push('Page load failed: ' + code + ' ' + desc + ' for ' + url);
     showLoading('Retrying... (' + desc + ')');
     setTimeout(loadApp, 3000);
+  });
+
+  mainWindow.webContents.on('did-fail-provisional-load', (_e, code, desc, url) => {
+    if (code === -3) return;
+    diag('renderer did-fail-provisional-load', { code, desc, url });
+  });
+
+  mainWindow.webContents.on('preload-error', (_event, preloadPath, error) => {
+    diag('preload error', { preloadPath, message: error.message, stack: error.stack });
+  });
+
+  mainWindow.webContents.on('console-message', (_event, level, message, line, sourceId) => {
+    diag('renderer console', { level, message, line, sourceId });
+  });
+
+  mainWindow.webContents.on('render-process-gone', (_event, details) => {
+    diag('renderer process gone', details);
   });
 
   mainWindow.webContents.on('before-input-event', (event, input) => {
@@ -226,11 +319,15 @@ function createWindow() {
 }
 
 app.whenReady().then(async () => {
+  initDiagnosticsLog();
+  registerDiagnosticsIpc();
+  registerNetworkDiagnostics();
   createWindow();
 
   if (!isDev) {
     const started = await startServer();
     serverLogs.push('Server start result: ' + started);
+    diag('production server start result', { started });
     showLoading(started ? 'Loading app...' : 'Server failed - check F12 console');
   }
 
