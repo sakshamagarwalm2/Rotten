@@ -20,6 +20,7 @@ function getBulletPrefix(bulletStyle: string, index: number, showBulletPoints: b
     case 'square': return '\u25a0 ';
     case 'number': return `${index + 1}. `;
     case 'letters': return `${String.fromCharCode(65 + index)}. `;
+    case 'letters-bracket': return `(${String.fromCharCode(65 + index)}) `;
     default: return '';
   }
 }

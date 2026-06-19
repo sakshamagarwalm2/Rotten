@@ -39,7 +39,7 @@ export default function SettingsPanel({ onBackgroundChange, showPreview, onToggl
   const [showAnswer, setShowAnswer] = useState(defaultSettings.showAnswer);
   const [showBulletPoints, setShowBulletPoints] = useState(defaultSettings.showBulletPoints);
   const [showYearTag, setShowYearTag] = useState(defaultSettings.showYearTag);
-  const [bulletStyle, setBulletStyle] = useState<'disc' | 'circle' | 'square' | 'number' | 'letters' | 'none'>(defaultSettings.bulletStyle);
+  const [bulletStyle, setBulletStyle] = useState<'disc' | 'circle' | 'square' | 'number' | 'letters' | 'letters-bracket' | 'none'>(defaultSettings.bulletStyle);
   const [headingPosition, setHeadingPosition] = useState<'topLeft' | 'topMiddle' | 'center'>(defaultSettings.headingPosition);
   
   // Groq API Key
@@ -481,6 +481,7 @@ export default function SettingsPanel({ onBackgroundChange, showPreview, onToggl
                   <option value="square">■ Square</option>
                   <option value="number">1. Numbers</option>
                   <option value="letters">A. Letters</option>
+                  <option value="letters-bracket">(A) Letters</option>
                   <option value="none">None</option>
                 </select>
               </div>

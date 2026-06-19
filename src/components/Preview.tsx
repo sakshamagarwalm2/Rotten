@@ -14,7 +14,7 @@ type PreviewProps = {
   showAnswer: boolean;
   showBulletPoints: boolean;
   showYearTag: boolean;
-  bulletStyle: 'disc' | 'circle' | 'square' | 'number' | 'letters' | 'none';
+  bulletStyle: 'disc' | 'circle' | 'square' | 'number' | 'letters' | 'letters-bracket' | 'none';
   headingPosition: 'topLeft' | 'topMiddle' | 'center';
 };
 
@@ -48,6 +48,7 @@ export default function Preview({
       case 'square': return '■';
       case 'number': return `${index + 1}.`;
       case 'letters': return `${String.fromCharCode(65 + index)}.`;
+      case 'letters-bracket': return `(${String.fromCharCode(65 + index)})`;
       default: return '';
     }
   };

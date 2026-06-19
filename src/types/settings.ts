@@ -21,7 +21,7 @@ export const PptSettingsSchema = z.object({
   showAnswer: z.boolean(),
   showBulletPoints: z.boolean(),
   showYearTag: z.boolean(),
-  bulletStyle: z.enum(['disc', 'circle', 'square', 'number', 'letters', 'none']),
+  bulletStyle: z.enum(['disc', 'circle', 'square', 'number', 'letters', 'letters-bracket', 'none']),
   headingPosition: z.enum(['topLeft', 'topMiddle', 'center']),
   
   // Layout
