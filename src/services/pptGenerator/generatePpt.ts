@@ -405,14 +405,7 @@ export async function generatePpt(
     if (settings.backgroundImage && typeof settings.backgroundImage === 'string') {
       const bgPath = settings.backgroundImage;
       if (fs.existsSync(bgPath)) {
-        slide.addImage({
-          path: bgPath,
-          x: 0,
-          y: 0,
-          w: 13.33,
-          h: 7.5,
-          sizing: { type: 'cover', w: 13.33, h: 7.5 },
-        });
+        slide.background = { path: bgPath };
       }
     }
 
