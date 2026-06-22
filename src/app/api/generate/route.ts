@@ -4,7 +4,7 @@ import path from 'path';
 import { z } from 'zod';
 import JSZip from 'jszip';
 import { PptSettingsSchema, type PptSettings } from '../../../types/settings';
-import { parseDoc } from '../../../services/docParser/parseDoc';
+import { parseDoc, extractFontFamily } from '../../../services/docParser/parseDoc';
 import { normalizeDoc } from '../../../services/docParser/normalizeDoc';
 import { calculateLayout } from '../../../services/layoutEngine/calculateLayout';
 import { generatePpt } from '../../../services/pptGenerator/generatePpt';
@@ -124,6 +124,11 @@ export async function POST(request: Request) {
     logger.info('[generate] Reading DOCX file...');
     const documentBuffer = await fs.readFile(metadata.docxPath);
     logger.info('[generate] documentBuffer size:', documentBuffer.length, 'bytes');
+
+    logger.section('Font Detection');
+    const detectedFont = await extractFontFamily(documentBuffer);
+    settings.fontFamily = detectedFont;
+    logger.info('[generate] Detected font family:', detectedFont);
 
     logger.section('Document Parsing');
     logger.info('[generate] Using deterministic DOCX parser...');

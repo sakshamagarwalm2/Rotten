@@ -16,6 +16,8 @@ export const defaultSettings = PptSettingsSchema.parse({
   showYearTag: true,
   bulletStyle: 'disc',
   headingPosition: 'topLeft',
+  fontFamily: 'Calibri',
+
   contentArea: {
     top: 0.5,
     left: 0.5,

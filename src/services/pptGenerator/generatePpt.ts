@@ -202,7 +202,7 @@ function calculateImageDisplaySize(
 const TABLE_ROW_HEIGHT = 0.4;
 const TABLE_BORDER = { type: 'solid' as const, pt: 1, color: '000000' };
 
-function renderTable(slide: any, table: TableData, x: number, y: number, w: number, maxH: number): number {
+function renderTable(slide: any, table: TableData, x: number, y: number, w: number, maxH: number, fontFamily: string): number {
   const cols = table.rows.reduce((max, row) => Math.max(max, row.cells.length), 0);
   if (cols === 0) return 0;
 
@@ -218,6 +218,7 @@ function renderTable(slide: any, table: TableData, x: number, y: number, w: numb
         options: {
           fontSize: 11,
           color: '333333',
+          fontFace: fontFamily,
           align: 'center' as const,
           valign: 'middle' as const,
           border: TABLE_BORDER,
@@ -282,6 +283,7 @@ function renderQuestionItem(slide: any, item: SlideItem, settings: PptSettings) 
       valign: 'top' as const,
       margin: 0,
       lineSpacing: renderSettings.lineSpacing * renderSettings.headingFontSize,
+      fontFace: renderSettings.fontFamily,
       wrap: true,
     });
   }
@@ -307,6 +309,7 @@ function renderQuestionItem(slide: any, item: SlideItem, settings: PptSettings) 
         h: yearTagH,
         align: 'right' as const,
         valign: 'top' as const,
+        fontFace: renderSettings.fontFamily,
         wrap: false,
       },
     );
@@ -328,6 +331,7 @@ function renderQuestionItem(slide: any, item: SlideItem, settings: PptSettings) 
       valign: 'top' as const,
       margin: 0,
       lineSpacing: renderSettings.lineSpacing * renderSettings.fontSize,
+      fontFace: renderSettings.fontFamily,
       wrap: true,
     });
     currentY += optionTotalHeight;
@@ -362,7 +366,7 @@ function renderQuestionItem(slide: any, item: SlideItem, settings: PptSettings) 
     const availableH = Math.max(0.4, item.y + item.height - currentY);
     for (const table of tables) {
       if (table.rows.length === 0) continue;
-      const used = renderTable(slide, table, item.x, currentY, item.width, availableH);
+      const used = renderTable(slide, table, item.x, currentY, item.width, availableH, renderSettings.fontFamily);
       currentY += used;
     }
   }
@@ -385,6 +389,7 @@ function renderQuestionItem(slide: any, item: SlideItem, settings: PptSettings) 
         valign: 'top' as const,
         margin: 0,
         lineSpacing: renderSettings.lineSpacing * renderSettings.fontSize,
+        fontFace: renderSettings.fontFamily,
         wrap: true,
       });
     }
@@ -443,6 +448,7 @@ export async function generatePpt(
           h: item.height,
           align: sectionAlign,
           valign: sectionValign,
+          fontFace: settings.fontFamily,
           wrap: true,
           fit: 'shrink',
         });

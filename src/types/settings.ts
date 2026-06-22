@@ -24,6 +24,9 @@ export const PptSettingsSchema = z.object({
   bulletStyle: z.enum(['disc', 'circle', 'square', 'number', 'letters', 'letters-bracket', 'none']),
   headingPosition: z.enum(['topLeft', 'topMiddle', 'center']),
   
+  // Font
+  fontFamily: z.string().min(1),
+
   // Layout
   contentArea: z.object({
     top: z.number(),

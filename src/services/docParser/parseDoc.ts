@@ -503,6 +503,61 @@ function getNextTextLine(entries: ParsedBlock[], startIndex: number): string | n
   return null;
 }
 
+function extractFontFromRunProps(xml: string): string | null {
+  const rPrMatch = xml.match(/<w:rPr[\s\S]*?<\/w:rPr>/);
+  if (!rPrMatch) return null;
+
+  const fontsMatch = rPrMatch[0].match(/<w:rFonts[^>]*\/>/);
+  if (!fontsMatch) return null;
+
+  return (
+    extractXmlAttribute(fontsMatch[0], 'w:ascii') ??
+    extractXmlAttribute(fontsMatch[0], 'w:hAnsi') ??
+    extractXmlAttribute(fontsMatch[0], 'w:cs') ??
+    null
+  );
+}
+
+export async function extractFontFamily(buffer: Buffer): Promise<string> {
+  try {
+    const zip = await JSZip.loadAsync(buffer);
+    const docFile = zip.file('word/document.xml');
+    if (!docFile) return 'Calibri';
+
+    const xml = await docFile.async('string');
+    const runPropsList = xml.match(/<w:rPr[\s\S]*?<\/w:rPr>/g) ?? [];
+    const fontCounts = new Map<string, number>();
+
+    for (const rPr of runPropsList) {
+      const font = extractFontFromRunProps(rPr);
+      if (font) {
+        fontCounts.set(font, (fontCounts.get(font) ?? 0) + 1);
+      }
+    }
+
+    const stylesFile = zip.file('word/styles.xml');
+    if (stylesFile) {
+      const stylesXml = await stylesFile.async('string');
+      const defaultRunProps = stylesXml.match(/<w:docDefaults[\s\S]*?<\/w:docDefaults>/);
+      if (defaultRunProps) {
+        const defaultFontMatch = defaultRunProps[0].match(/<w:rFonts[^>]*w:ascii=["']([^"']+)["']/);
+        if (defaultFontMatch) {
+          const df = defaultFontMatch[1];
+          if (!fontCounts.has(df)) {
+            fontCounts.set(df, 1);
+          }
+        }
+      }
+    }
+
+    if (fontCounts.size === 0) return 'Calibri';
+
+    return [...fontCounts.entries()].sort((a, b) => b[1] - a[1])[0][0];
+  } catch {
+    return 'Calibri';
+  }
+}
+
 export async function parseDoc(
   file: File | Blob | ArrayBuffer | Uint8Array,
   settings?: PptSettings,
