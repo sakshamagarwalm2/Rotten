@@ -145,6 +145,7 @@ export default function SettingsPanel({ onBackgroundChange, showPreview, onToggl
       showYearTag,
       bulletStyle,
       headingPosition,
+      fontFamily: defaultSettings.fontFamily,
       contentArea: {
         top: verticalMargin,
         left: horizontalMargin,
